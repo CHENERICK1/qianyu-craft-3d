@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>大明神机 · 乾舆一号空天神机 3D 交互典藏</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="webgl-canvas"></canvas>
+      
+      <!-- 顶部标题与古籍铭牌 -->
+      <header class="blueprint-header">
+        <div class="stamp-seal">大明工部</div>
+        <div class="title-group">
+          <h1>乾舆一号 · 空天神机</h1>
+          <p class="subtitle">永乐天工秘录 · 混元乾坤飞舆三维营构图谱</p>
+        </div>
+        <div class="spec-badge">
+          <span>直径: 15.0m</span> | <span>通高: 5.0m</span> | <span>鼎足: 2.3m</span>
+        </div>
+      </header>
+
+      <!-- 左侧尺寸与营造参数看板 -->
+      <aside class="spec-panel">
+        <div class="panel-header">〖 营造法式与周天度数 〗</div>
+        <ul class="spec-list">
+          <li><strong>乾元盘体：</strong>双曲抛物面碟身（径 15m × 高 5m）</li>
+          <li><strong>重甲厚度：</strong>玄铁装甲厚 0.8m</li>
+          <li><strong>三才鼎足：</strong>高 2.3m（120° 鼎立分布，带液压机关）</li>
+          <li><strong>周天星宿窗：</strong>宽 1.8m / 间距 1.2m（步步锦棂花）</li>
+          <li><strong>混元枢纽：</strong>天池定风珠 / 反重力太极导流核心</li>
+        </ul>
+      </aside>
+
+      <!-- 底部交互控制台 -->
+      <footer class="control-bar">
+        <div class="btn-group">
+          <button id="btn-render-mode" class="cyber-btn active">☯ 模式切换：玄铁青铜 / 宣纸蓝图</button>
+          <button id="btn-landing-gear" class="cyber-btn">⚙ 鼎足升降（收折飞行）</button>
+          <button id="btn-explode" class="cyber-btn">⚡ 零件分层拆解</button>
+          <button id="btn-reset-view" class="cyber-btn">⊙ 视角复位</button>
+        </div>
+      </footer>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
