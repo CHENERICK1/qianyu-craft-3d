@@ -23,7 +23,7 @@ export function createQianyuModel(): QianyuModelResult {
 
   // ===== 材质 =====
   const armorMat = new THREE.MeshStandardMaterial({
-    color: '#1a2235',
+    color: '#2d3d55',   // 稍亮的深蓝灰钢铁色，夜光下可见层次
     metalness: 0.88,
     roughness: 0.28,
   });
