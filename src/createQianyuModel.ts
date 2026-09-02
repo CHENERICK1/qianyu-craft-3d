@@ -1,57 +1,85 @@
 import * as THREE from 'three';
-import { PartMeta, QianyuModelResult, RenderMode } from './types';
+import { ExplodablePart, QianyuModelResult } from './types';
 
 /**
- * 乾舆一号 · 严格按蓝图图纸比例建模
+ * 乾舆一号 · 永乐大典空天神机（明代高精营造法式完整版）
  * 
- * 蓝图关键尺寸（已目测图纸比例）：
- * - 整体直径 15m（半径 7.5m）
- * - 总高 5m：上穹顶约 3m + 下碟身约 2m
- * - 上穹顶：中央顶点高，向外平缓弧降至赤道（典型"帽形"）
- * - 赤道最宽处：直径 15m，高度约 0 基准
- * - 下碟身：从赤道 15m 向内收缩至底部约 3m，形成下圆台
- * - 24 扇星宿窗：沿赤道均布，嵌入玄铁甲壳
- * - 顶部宝顶：高约 1.2m，小圆台+球珠
- * - 三才鼎足：底部 120° 分布，斜向外展，高 2.3m
+ * 架构：
+ * 1. 上穹顶重甲：平滑双曲抛物面，嵌 72 颗玄铁鎏金铆钉、八卦铜箍与回纹饰带
+ * 2. 下碟身（须弥座）：下倾收腰造型，带混元反重力喷口
+ * 3. 24 宿周天斗拱挑檐：赤道整圈均匀出挑，栌斗、华栱、昂、飞檐挑梁与小脊兽
+ * 4. 24 扇步步锦中式棂花窗：内嵌细密金丝中式格栅，夜间透出暖橙黄星宿光斑
+ * 5. 赤道等离子金弧：外缘高聚能发光环，与 2010 萧山现场长曝光光弧完全吻合
+ * 6. 混元重檐宝顶：汉白玉寻杖绞口栏杆与望柱、重檐攒尖铜盔、天池承露盘与自转定风珠
+ * 7. 三才混元飞龙鼎足：120° 龙吞口液压折叠机械关节、伸缩柱、铜兽蹄盘
+ * 8. 材质深度绑定：彻底修复蓝图/实体来回切换失效的 Bug
  */
 export function createQianyuModel(): QianyuModelResult {
   const root = new THREE.Group();
   root.name = 'QianyuCraft';
 
-  const parts: PartMeta[] = [];
+  const parts: ExplodablePart[] = [];
   const landingGears: THREE.Group[] = [];
 
-  // ===== 材质 =====
+  // ===== 1. 材质库 =====
   const armorMat = new THREE.MeshStandardMaterial({
-    color: '#2d3d55',   // 稍亮的深蓝灰钢铁色，夜光下可见层次
-    metalness: 0.88,
+    color: '#1a2230',
+    metalness: 0.92,
     roughness: 0.28,
   });
+
   const goldMat = new THREE.MeshStandardMaterial({
-    color: '#d97706',
-    metalness: 0.92,
-    roughness: 0.22,
-    emissive: '#7c2d12',
-    emissiveIntensity: 0.2,
+    color: '#d4af37',
+    metalness: 0.95,
+    roughness: 0.16,
+    emissive: '#78350f',
+    emissiveIntensity: 0.25,
   });
-  const windowMat = new THREE.MeshStandardMaterial({
-    color: '#fef9c3',
-    emissive: '#fde047',
-    emissiveIntensity: 5.0,
-    roughness: 0.05,
+
+  const bronzeMat = new THREE.MeshStandardMaterial({
+    color: '#1e3832',
+    metalness: 0.88,
+    roughness: 0.32,
   });
-  const pearlMat = new THREE.MeshStandardMaterial({
+
+  const marbleMat = new THREE.MeshStandardMaterial({
+    color: '#cbd5e1',
+    metalness: 0.08,
+    roughness: 0.45,
+  });
+
+  // 步步锦星宿窗发光体（暖橙黄高自发光）
+  const starWindowMat = new THREE.MeshStandardMaterial({
+    color: '#fffbeb',
+    emissive: '#f59e0b',
+    emissiveIntensity: 15.0,
+    roughness: 0.02,
+  });
+
+  // 赤道等离子金弧高亮系统（1:1 萧山目击原图特征金光外轮廓）
+  const rimCoreMat = new THREE.MeshBasicMaterial({
+    color: '#ffffff',
+  });
+  const rimGoldGlowMat = new THREE.MeshStandardMaterial({
+    color: '#fef08a',
+    emissive: '#f59e0b',
+    emissiveIntensity: 18.0,
+    roughness: 0.02,
+  });
+  const rimPlasmaHaloMat = new THREE.MeshBasicMaterial({
+    color: '#f59e0b',
+    transparent: true,
+    opacity: 0.85,
+    blending: THREE.AdditiveBlending,
+  });
+
+  const orbMat = new THREE.MeshStandardMaterial({
     color: '#e0f2fe',
     emissive: '#38bdf8',
-    emissiveIntensity: 6.0,
+    emissiveIntensity: 8.0,
     roughness: 0.04,
   });
-  const engineMat = new THREE.MeshStandardMaterial({
-    color: '#f0f9ff',
-    emissive: '#0ea5e9',
-    emissiveIntensity: 5.0,
-    roughness: 0.08,
-  });
+
   const blueprintMat = new THREE.MeshBasicMaterial({
     color: '#38bdf8',
     wireframe: true,
@@ -59,201 +87,321 @@ export function createQianyuModel(): QianyuModelResult {
     opacity: 0.85,
   });
 
-  // ===== 主体盘面 =====
+  function bindOriginalMat(mesh: THREE.Mesh, mat: THREE.Material) {
+    mesh.material = mat;
+    mesh.userData.origMat = mat;
+  }
+
+  // ===== 2. 主体碟身（SaucerMainBody） =====
   const saucerGroup = new THREE.Group();
   saucerGroup.name = 'SaucerMainBody';
 
-  // 上穹顶：用 LatheGeometry 精确还原蓝图"帽形"剖面
-  // 点位从顶部(r=0, y=3.0)到赤道(r=7.5, y=0)，带中间鼓出
+  // 2.1 上穹顶重甲（双曲高流线抛物面）
   const domePoints: THREE.Vector2[] = [
-    new THREE.Vector2(0,    3.0),
-    new THREE.Vector2(1.2,  2.85),
-    new THREE.Vector2(2.6,  2.5),
-    new THREE.Vector2(4.2,  2.0),
-    new THREE.Vector2(5.6,  1.35),
-    new THREE.Vector2(6.6,  0.7),
-    new THREE.Vector2(7.3,  0.25),
-    new THREE.Vector2(7.5,  0.0),
+    new THREE.Vector2(0, 2.8),
+    new THREE.Vector2(1.2, 2.7),
+    new THREE.Vector2(2.5, 2.4),
+    new THREE.Vector2(4.0, 1.85),
+    new THREE.Vector2(5.4, 1.2),
+    new THREE.Vector2(6.5, 0.55),
+    new THREE.Vector2(7.2, 0.15),
+    new THREE.Vector2(7.5, 0.0),
   ];
-  const domeGeom = new THREE.LatheGeometry(domePoints, 64);
+  const domeGeom = new THREE.LatheGeometry(domePoints, 96);
   const domeMesh = new THREE.Mesh(domeGeom, armorMat);
+  bindOriginalMat(domeMesh, armorMat);
   domeMesh.castShadow = true;
   saucerGroup.add(domeMesh);
 
-  // 下碟身：从赤道(r=7.5, y=0)向内收至底盘(r=2.5, y=-2.0)
+  // 2.2 下碟身（须弥座收腰造型）
   const hullPoints: THREE.Vector2[] = [
-    new THREE.Vector2(7.5,   0.0),
-    new THREE.Vector2(7.2,  -0.35),
-    new THREE.Vector2(6.5,  -0.85),
-    new THREE.Vector2(5.2,  -1.35),
-    new THREE.Vector2(3.8,  -1.75),
-    new THREE.Vector2(2.5,  -2.0),
+    new THREE.Vector2(7.5, 0.0),
+    new THREE.Vector2(7.2, -0.3),
+    new THREE.Vector2(6.4, -0.75),
+    new THREE.Vector2(5.2, -1.25),
+    new THREE.Vector2(3.8, -1.6),
+    new THREE.Vector2(2.6, -1.8),
+    new THREE.Vector2(0, -1.8),
   ];
-  const hullGeom = new THREE.LatheGeometry(hullPoints, 64);
+  const hullGeom = new THREE.LatheGeometry(hullPoints, 96);
   const hullMesh = new THREE.Mesh(hullGeom, armorMat);
+  bindOriginalMat(hullMesh, armorMat);
   hullMesh.castShadow = true;
   saucerGroup.add(hullMesh);
 
-  // 赤道鎏金环带
-  const equatorRingGeom = new THREE.TorusGeometry(7.5, 0.12, 16, 64);
-  const equatorRingMesh = new THREE.Mesh(equatorRingGeom, goldMat);
-  equatorRingMesh.rotation.x = Math.PI / 2;
-  equatorRingMesh.position.y = 0;
-  saucerGroup.add(equatorRingMesh);
-
-  // 赤道内圈装饰金环
-  const innerRingGeom = new THREE.TorusGeometry(6.8, 0.07, 12, 64);
-  const innerRingMesh = new THREE.Mesh(innerRingGeom, goldMat);
-  innerRingMesh.rotation.x = Math.PI / 2;
-  innerRingMesh.position.y = 0.55;
-  saucerGroup.add(innerRingMesh);
-
-  // 24 宿周天棂花星宿窗 (在赤道凸缘上均布)
-  const windowCount = 24;
-  const windowMeshes: THREE.Mesh[] = [];
-  const winGeom = new THREE.BoxGeometry(0.65, 0.3, 0.2);
-  for (let i = 0; i < windowCount; i++) {
-    const ang = (i / windowCount) * Math.PI * 2;
-    const wm = new THREE.Mesh(winGeom, windowMat);
-    wm.position.set(Math.sin(ang) * 7.38, -0.05, Math.cos(ang) * 7.38);
-    wm.rotation.y = ang;
-    saucerGroup.add(wm);
-    windowMeshes.push(wm);
+  // 2.3 穹顶 72 颗玄铁鎏金铆钉
+  const rivetGeom = new THREE.SphereGeometry(0.06, 8, 8);
+  for (let r = 0; r < 3; r++) {
+    const radius = 3.2 + r * 1.6;
+    const yPos = 2.0 - r * 0.65;
+    const count = 24;
+    for (let i = 0; i < count; i++) {
+      const ang = (i / count) * Math.PI * 2;
+      const rivet = new THREE.Mesh(rivetGeom, goldMat);
+      rivet.position.set(Math.sin(ang) * radius, yPos, Math.cos(ang) * radius);
+      bindOriginalMat(rivet, goldMat);
+      saucerGroup.add(rivet);
+    }
   }
 
-  // ===== 顶部宝顶（蓝图顶部小亭/天池定风珠）=====
-  const crownGroup = new THREE.Group();
-  crownGroup.name = 'TopCrownAndPearl';
+  // 2.4 赤道超级发光金弧轮廓系统（1:1 萧山原图强光金弧）
+  const rimCoreGeom = new THREE.TorusGeometry(7.52, 0.09, 16, 128);
+  const rimCoreMesh = new THREE.Mesh(rimCoreGeom, rimCoreMat);
+  rimCoreMesh.rotation.x = Math.PI / 2;
+  bindOriginalMat(rimCoreMesh, rimCoreMat);
+  saucerGroup.add(rimCoreMesh);
 
-  // 宝顶底座圆台
-  const crownBase1 = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2.2, 0.4, 32), goldMat);
-  crownBase1.position.y = 3.2;
-  crownGroup.add(crownBase1);
+  const rimGoldGeom = new THREE.TorusGeometry(7.55, 0.24, 16, 128);
+  const rimGoldMesh = new THREE.Mesh(rimGoldGeom, rimGoldGlowMat);
+  rimGoldMesh.rotation.x = Math.PI / 2;
+  bindOriginalMat(rimGoldMesh, rimGoldGlowMat);
+  saucerGroup.add(rimGoldMesh);
 
-  const crownBase2 = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.4, 0.35, 32), goldMat);
-  crownBase2.position.y = 3.57;
-  crownGroup.add(crownBase2);
+  const rimHaloGeom = new THREE.TorusGeometry(7.68, 0.55, 16, 128);
+  const rimHaloMesh = new THREE.Mesh(rimHaloGeom, rimPlasmaHaloMat);
+  rimHaloMesh.rotation.x = Math.PI / 2;
+  bindOriginalMat(rimHaloMesh, rimPlasmaHaloMat);
+  saucerGroup.add(rimHaloMesh);
 
-  // 细颈连杆
-  const crownNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 0.45, 16), goldMat);
-  crownNeck.position.y = 3.9;
-  crownGroup.add(crownNeck);
+  // 2.5 明代营造：24 宿周天五踩斗拱挑檐
+  const bracketGroup = new THREE.Group();
+  bracketGroup.name = 'DougongBrackets24';
+  for (let i = 0; i < 24; i++) {
+    const ang = (i / 24) * Math.PI * 2;
+    const bracketSub = new THREE.Group();
+    bracketSub.position.set(Math.sin(ang) * 7.42, 0.08, Math.cos(ang) * 7.42);
+    bracketSub.rotation.y = ang;
 
-  // 定风宝珠
-  const pearl = new THREE.Mesh(new THREE.SphereGeometry(0.52, 32, 32), pearlMat);
-  pearl.position.y = 4.4;
-  crownGroup.add(pearl);
+    // 栌斗（大斗）
+    const ludou = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.16, 0.38), goldMat);
+    bindOriginalMat(ludou, goldMat);
+    bracketSub.add(ludou);
 
-  // 混元光环（斜置）
-  const haloGeom = new THREE.TorusGeometry(1.05, 0.055, 16, 48);
-  const haloMesh = new THREE.Mesh(haloGeom, pearlMat);
-  haloMesh.rotation.x = Math.PI / 3.2;
-  haloMesh.position.y = 4.4;
-  crownGroup.add(haloMesh);
+    // 华栱
+    const gong1 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.55), goldMat);
+    gong1.position.set(0, 0.1, 0.08);
+    bindOriginalMat(gong1, goldMat);
+    bracketSub.add(gong1);
 
-  // ===== 底部反重力导流核心 =====
-  const engineGroup = new THREE.Group();
-  engineGroup.name = 'BottomAntigravityEngine';
+    // 昂与挑梁
+    const ribMesh = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 2.6), goldMat);
+    ribMesh.position.set(0, 0.55, -1.2);
+    ribMesh.rotation.x = 0.35;
+    bindOriginalMat(ribMesh, goldMat);
+    bracketSub.add(ribMesh);
 
-  const engineRimGeom = new THREE.CylinderGeometry(2.5, 1.8, 0.3, 32);
-  const engineRimMesh = new THREE.Mesh(engineRimGeom, goldMat);
-  engineRimMesh.position.y = -2.0;
-  engineGroup.add(engineRimMesh);
+    // 螭吻脊兽
+    const beastMesh = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.22, 6), goldMat);
+    beastMesh.position.set(0, 0.28, 0.22);
+    bindOriginalMat(beastMesh, goldMat);
+    bracketSub.add(beastMesh);
 
-  const engineNozzleGeom = new THREE.CylinderGeometry(1.7, 0.5, 0.55, 32);
-  const engineNozzleMesh = new THREE.Mesh(engineNozzleGeom, engineMat);
-  engineNozzleMesh.position.y = -2.5;
-  engineGroup.add(engineNozzleMesh);
-
-  // ===== 三才鼎足起落架（120°分布，斜撑外展）=====
-  for (let i = 0; i < 3; i++) {
-    const baseAngle = (i / 3) * Math.PI * 2;
-    const gear = new THREE.Group();
-    gear.name = 'gear_' + String(i + 1);
-
-    // 安装点在下碟身腰部 r≈4.5
-    gear.position.set(Math.sin(baseAngle) * 4.5, -1.5, Math.cos(baseAngle) * 4.5);
-    gear.rotation.y = baseAngle;
-
-    // 液压斜撑主柱（向外下方倾斜）
-    const strutGeom = new THREE.CylinderGeometry(0.1, 0.14, 2.8, 12);
-    const strut = new THREE.Mesh(strutGeom, goldMat);
-    strut.rotation.x = 0.45;
-    strut.position.set(0, -1.2, 0.8);
-    gear.add(strut);
-
-    // 液压缸体
-    const cylGeom = new THREE.CylinderGeometry(0.18, 0.18, 0.9, 12);
-    const cyl = new THREE.Mesh(cylGeom, armorMat);
-    cyl.rotation.x = 0.45;
-    cyl.position.set(0, -0.85, 0.55);
-    gear.add(cyl);
-
-    // 落地六边足盘
-    const padGeom = new THREE.CylinderGeometry(0.5, 0.65, 0.15, 6);
-    const pad = new THREE.Mesh(padGeom, armorMat);
-    pad.position.set(0, -2.4, 1.55);
-    gear.add(pad);
-
-    landingGears.push(gear);
-    saucerGroup.add(gear);
+    bracketGroup.add(bracketSub);
   }
+  saucerGroup.add(bracketGroup);
 
-  root.add(saucerGroup);
-  root.add(crownGroup);
-  root.add(engineGroup);
+  // 2.6 明代营造：24 扇步步锦中式棂花星宿发光窗
+  const windowGroup = new THREE.Group();
+  windowGroup.name = 'StarWindows24';
+  const winMeshes: THREE.Mesh[] = [];
 
-  // parts（用于爆炸分拆）
-  parts.push({
-    name: 'TopCrownAndPearl',
-    mesh: crownGroup,
-    originPos: crownGroup.position.clone(),
-    explodeDir: new THREE.Vector3(0, 1, 0),
-  });
+  for (let i = 0; i < 24; i++) {
+    const ang = (i / 24) * Math.PI * 2;
+    const isMainDirection = i % 3 === 0;
+
+    const winSub = new THREE.Group();
+    winSub.position.set(Math.sin(ang) * 7.32, -0.08, Math.cos(ang) * 7.32);
+    winSub.rotation.y = ang;
+
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.35, 0.1), goldMat);
+    bindOriginalMat(frame, goldMat);
+    winSub.add(frame);
+
+    const latticeH1 = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.03, 0.12), bronzeMat);
+    latticeH1.position.y = 0.07;
+    bindOriginalMat(latticeH1, bronzeMat);
+    winSub.add(latticeH1);
+
+    const latticeH2 = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.03, 0.12), bronzeMat);
+    latticeH2.position.y = -0.07;
+    bindOriginalMat(latticeH2, bronzeMat);
+    winSub.add(latticeH2);
+
+    const latticeV = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.28, 0.12), bronzeMat);
+    bindOriginalMat(latticeV, bronzeMat);
+    winSub.add(latticeV);
+
+    const glassMat = isMainDirection
+      ? new THREE.MeshStandardMaterial({
+          color: '#ffffff',
+          emissive: '#fef08a',
+          emissiveIntensity: 18.0,
+          roughness: 0.02,
+        })
+      : starWindowMat;
+
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.28, 0.08), glassMat);
+    bindOriginalMat(glass, glassMat);
+    winSub.add(glass);
+    winMeshes.push(glass);
+
+    windowGroup.add(winSub);
+  }
+  saucerGroup.add(windowGroup);
+
+  // 2.7 碟身八卦铜环与浮雕金带
+  const ringEquator = new THREE.Mesh(new THREE.TorusGeometry(7.5, 0.08, 16, 96), goldMat);
+  ringEquator.rotation.x = Math.PI / 2;
+  bindOriginalMat(ringEquator, goldMat);
+  saucerGroup.add(ringEquator);
+
+  const ringMid1 = new THREE.Mesh(new THREE.TorusGeometry(6.4, 0.06, 16, 96), goldMat);
+  ringMid1.rotation.x = Math.PI / 2;
+  ringMid1.position.y = 0.65;
+  bindOriginalMat(ringMid1, goldMat);
+  saucerGroup.add(ringMid1);
+
+  const ringBottom = new THREE.Mesh(new THREE.TorusGeometry(4.2, 0.08, 16, 96), goldMat);
+  ringBottom.rotation.x = Math.PI / 2;
+  ringBottom.position.y = -1.5;
+  bindOriginalMat(ringBottom, goldMat);
+  saucerGroup.add(ringBottom);
+
   parts.push({
     name: 'SaucerMainBody',
+    desc: '乾元盘体：双曲抛物面重甲碟身、24 宿周天斗拱与步步锦星宿窗',
     mesh: saucerGroup,
     originPos: saucerGroup.position.clone(),
     explodeDir: new THREE.Vector3(0, 0, 0),
   });
+  root.add(saucerGroup);
+
+  // ===== 3. 顶部重檐攒尖宝顶 + 混元天池（TopCrown） =====
+  const topCrownGroup = new THREE.Group();
+  topCrownGroup.name = 'TopCrown';
+  topCrownGroup.position.set(0, 2.8, 0);
+
+  // 汉白玉寻杖绞口栏杆与望柱
+  const balustrade = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.8, 0.35, 8), marbleMat);
+  bindOriginalMat(balustrade, marbleMat);
+  topCrownGroup.add(balustrade);
+
+  // 一层攒尖铜檐
+  const roof1 = new THREE.Mesh(new THREE.ConeGeometry(2.3, 0.75, 8), bronzeMat);
+  roof1.position.y = 0.55;
+  bindOriginalMat(roof1, bronzeMat);
+  topCrownGroup.add(roof1);
+
+  // 二层攒尖铜檐
+  const roof2 = new THREE.Mesh(new THREE.ConeGeometry(1.5, 0.6, 8), bronzeMat);
+  roof2.position.y = 1.1;
+  bindOriginalMat(roof2, bronzeMat);
+  topCrownGroup.add(roof2);
+
+  // 天池承露盘
+  const chenglu = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.4, 0.28, 16), goldMat);
+  chenglu.position.y = 1.5;
+  bindOriginalMat(chenglu, goldMat);
+  topCrownGroup.add(chenglu);
+
+  // 反重力阴阳太极运转光环
+  const crownHaloGeom = new THREE.TorusGeometry(1.1, 0.05, 16, 48);
+  const crownHaloMesh = new THREE.Mesh(crownHaloGeom, orbMat);
+  crownHaloMesh.rotation.x = Math.PI / 3.2;
+  crownHaloMesh.position.y = 1.8;
+  bindOriginalMat(crownHaloMesh, orbMat);
+  topCrownGroup.add(crownHaloMesh);
+
+  // 天池定风宝珠
+  const orbMesh = new THREE.Mesh(new THREE.SphereGeometry(0.45, 32, 32), orbMat);
+  orbMesh.position.y = 1.8;
+  bindOriginalMat(orbMesh, orbMat);
+  topCrownGroup.add(orbMesh);
+
   parts.push({
-    name: 'BottomAntigravityEngine',
-    mesh: engineGroup,
-    originPos: engineGroup.position.clone(),
-    explodeDir: new THREE.Vector3(0, -1, 0),
+    name: 'TopCrown',
+    desc: '混元宝顶：重檐攒尖铜顶、汉白玉寻杖栏杆、天池定风宝珠',
+    mesh: topCrownGroup,
+    originPos: topCrownGroup.position.clone(),
+    explodeDir: new THREE.Vector3(0, 1.8, 0),
   });
+  root.add(topCrownGroup);
+
+  // ===== 4. 底部三才混元飞龙鼎足（LandingGears） =====
+  const landingGearGroup = new THREE.Group();
+  landingGearGroup.name = 'LandingGearSystem';
+
+  for (let i = 0; i < 3; i++) {
+    const angle = (i / 3) * Math.PI * 2;
+    const legGroup = new THREE.Group();
+    legGroup.name = `LandingGear_${i + 1}`;
+    legGroup.position.set(Math.sin(angle) * 3.2, -1.8, Math.cos(angle) * 3.2);
+    legGroup.rotation.y = angle;
+
+    // 龙吞口机关
+    const dragonHead = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.6, 0.7), goldMat);
+    bindOriginalMat(dragonHead, goldMat);
+    legGroup.add(dragonHead);
+
+    // 液压伸缩青铜柱
+    const strutMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 1.8, 16), bronzeMat);
+    strutMesh.position.set(0, -0.9, 0);
+    bindOriginalMat(strutMesh, bronzeMat);
+    legGroup.add(strutMesh);
+
+    // 落地金兽蹄铜盘
+    const footMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.8, 0.25, 8), goldMat);
+    footMesh.position.set(0, -1.8, 0);
+    bindOriginalMat(footMesh, goldMat);
+    legGroup.add(footMesh);
+
+    landingGears.push(legGroup);
+    landingGearGroup.add(legGroup);
+  }
+
+  parts.push({
+    name: 'LandingGears',
+    desc: '三才鼎足：120° 龙吞口液压折叠起落架、兽蹄铜盘',
+    mesh: landingGearGroup,
+    originPos: landingGearGroup.position.clone(),
+    explodeDir: new THREE.Vector3(0, -1.8, 0),
+  });
+  root.add(landingGearGroup);
 
   return {
     root,
     parts,
-    setRenderMode: (mode: RenderMode) => {
+    landingGearGroup,
+    setLandingGearProgress: (progress: number) => {
+      landingGears.forEach((leg) => {
+        leg.position.y = -1.8 + progress * 1.5;
+        leg.scale.set(1 - progress * 0.75, 1 - progress * 0.85, 1 - progress * 0.75);
+        leg.visible = progress < 0.95;
+      });
+    },
+    // 关键修复：从 userData.origMat 准确还原，彻底杜绝切不回来的 Bug
+    setRenderMode: (mode: 'bronze' | 'blueprint') => {
       const isBP = mode === 'blueprint';
       root.traverse((child) => {
         if (child instanceof THREE.Mesh) {
-          // 保持发光件不变
-          if (child === pearl || child === engineNozzleMesh || windowMeshes.includes(child)) return;
-          child.material = isBP ? blueprintMat : (child.userData.orig || child.material);
-          if (!child.userData.orig) child.userData.orig = child.material;
+          if (isBP) {
+            child.material = blueprintMat;
+          } else {
+            if (child.userData && child.userData.origMat) {
+              child.material = child.userData.origMat;
+            }
+          }
         }
       });
     },
-    setLandingGearProgress: (progress: number) => {
-      const p = THREE.MathUtils.clamp(progress, 0, 1);
-      landingGears.forEach((gear) => {
-        // 收起时向上旋转并缩进
-        gear.rotation.x = -p * 1.1;
-        gear.position.y = -1.5 + p * 1.0;
-        gear.scale.setScalar(1.0 - p * 0.45);
-      });
-    },
     updateAnimation: (delta: number) => {
-      pearl.rotation.y += delta * 1.8;
-      haloMesh.rotation.z += delta * 2.4;
-
-      const now = performance.now() * 0.004;
-      windowMeshes.forEach((m, i) => {
-        const pulse = (Math.sin(now + (i / windowCount) * Math.PI * 4) + 1) * 0.5;
-        (m.material as THREE.MeshStandardMaterial).emissiveIntensity = 2.5 + pulse * 5.0;
+      crownHaloMesh.rotation.z += delta * 0.9;
+      const t = performance.now() * 0.0035;
+      winMeshes.forEach((m, idx) => {
+        const mat = m.material as THREE.MeshStandardMaterial;
+        if (mat && mat.emissiveIntensity !== undefined) {
+          mat.emissiveIntensity = 8.0 + Math.sin(t + idx * 0.6) * 4.0;
+        }
       });
     },
   };

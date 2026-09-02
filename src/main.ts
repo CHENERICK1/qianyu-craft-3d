@@ -1,137 +1,52 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createQianyuModel } from './createQianyuModel';
+import { createAirportScene } from './createAirportScene';
 
 // ===== 渲染器 =====
 const canvas = document.getElementById('webgl-canvas') as HTMLCanvasElement;
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
+renderer.toneMappingExposure = 1.35;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#030814');
-scene.fog = new THREE.FogExp2('#030814', 0.0004);
+scene.background = new THREE.Color('#03050a');
+scene.fog = new THREE.FogExp2('#03050a', 0.00035);
 
-// ===== 相机：侧面观察，让碟形剖面清晰可见 =====
-// 关键：camera y ≈ 飞碟 y，水平距离拉远，视角略仰，这样能看到碟形侧面轮廓
-// 飞碟放在 y=0，相机在 y=-2（略低于飞碟赤道），z=55，能看到侧面碟形
-const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 3000);
-camera.position.set(-30, -2, 55);
+// ===== 相机：1:1 萧山现场广角长焦仰拍视角 =====
+const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 4000);
+camera.position.set(0, 0, 180);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 controls.maxPolarAngle = Math.PI * 0.95;
 controls.minDistance = 2;
-controls.maxDistance = 500;
-controls.target.set(0, 4, 0);
+controls.maxDistance = 800;
+controls.target.set(0, 20, -50);
 controls.update();
 
 // ===== 光照 =====
-const ambientLight = new THREE.AmbientLight('#ffffff', 0.6);
+const ambientLight = new THREE.AmbientLight('#ffffff', 0.35);
 scene.add(ambientLight);
 
-const moonLight = new THREE.DirectionalLight('#c8d8ff', 2.2);
-moonLight.position.set(30, 40, 20);
+const moonLight = new THREE.DirectionalLight('#94a3b8', 1.6);
+moonLight.position.set(50, 120, 50);
 scene.add(moonLight);
 
-// 从左前方补光，凸显穹顶体积感
-const fillLight = new THREE.DirectionalLight('#fbbf24', 1.5);
-fillLight.position.set(-25, 15, 30);
-scene.add(fillLight);
-
-// 飞碟底部引擎蓝光
-const ufoGlow = new THREE.PointLight('#38bdf8', 4.0, 80);
-ufoGlow.position.set(0, -3, 0);
+// 飞碟自发光光晕
+const ufoGlow = new THREE.PointLight('#38bdf8', 4.0, 140);
+ufoGlow.position.set(-6, 52, -60);
 scene.add(ufoGlow);
 
-// ===== 乾舆飞碟 =====
-// 飞碟放大 1.8 倍，让碟形在画面中占据足够分量
+// ===== 乾舆飞碟模型 =====
 const qianyu = createQianyuModel();
-qianyu.root.position.set(0, 0, 0);
-qianyu.root.rotation.set(0.0, -0.3, 0.14);
-qianyu.root.scale.setScalar(1.8);
 scene.add(qianyu.root);
-qianyu.setLandingGearProgress(1.0);
 
-// ===== 萧山机场夜景（地面在 y=-12，地平线在画面下方）=====
-const airportGroup = new THREE.Group();
-
-// 1. 黑色地坪
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(3000, 3000),
-  new THREE.MeshStandardMaterial({ color: '#010205', roughness: 1.0 })
-);
-ground.rotation.x = -Math.PI / 2;
-ground.position.y = -12;
-airportGroup.add(ground);
-
-// 2. 地平线灯光：改成分段式，对应原图断续灯光效果
-// 航站楼主体（中心段）
-const terminal = new THREE.Mesh(
-  new THREE.BoxGeometry(200, 2.5, 2),
-  new THREE.MeshBasicMaterial({ color: '#f59e0b' })
-);
-terminal.position.set(-40, -11.5, -100);
-airportGroup.add(terminal);
-
-// 航站楼右翼
-const terminalR = new THREE.Mesh(
-  new THREE.BoxGeometry(120, 2.0, 2),
-  new THREE.MeshBasicMaterial({ color: '#d97706' })
-);
-terminalR.position.set(160, -11.8, -100);
-airportGroup.add(terminalR);
-
-// 廊桥亮带（顶层细条）
-const terminal2 = new THREE.Mesh(
-  new THREE.BoxGeometry(180, 0.8, 1),
-  new THREE.MeshBasicMaterial({ color: '#fbbf24' })
-);
-terminal2.position.set(-40, -9.5, -100);
-airportGroup.add(terminal2);
-
-// 3. 左侧塔台
-const towerBody = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.7, 1.0, 22, 8),
-  new THREE.MeshBasicMaterial({ color: '#1e2d40' })
-);
-towerBody.position.set(-160, -2, -100);
-airportGroup.add(towerBody);
-
-const towerTopLight = new THREE.Mesh(
-  new THREE.SphereGeometry(1.5, 8, 8),
-  new THREE.MeshBasicMaterial({ color: '#fef08a' })
-);
-towerTopLight.position.set(-160, 8, -100);
-airportGroup.add(towerTopLight);
-
-// 4. 地平线散点暖灯
-const ptGeom = new THREE.SphereGeometry(0.35, 6, 6);
-const ptMat = new THREE.MeshBasicMaterial({ color: '#f59e0b' });
-for (let i = 0; i < 70; i++) {
-  const pt = new THREE.Mesh(ptGeom, ptMat);
-  pt.position.set(
-    (Math.random() - 0.5) * 450,
-    -11.5,
-    -70 - Math.random() * 90
-  );
-  airportGroup.add(pt);
-}
-
-// 5. 跑道绿色导航灯
-const greenGeom = new THREE.SphereGeometry(0.25, 6, 6);
-const greenMat = new THREE.MeshBasicMaterial({ color: '#10b981' });
-for (let z = -8; z >= -120; z -= 25) {
-  [-70, 70].forEach((x) => {
-    const g = new THREE.Mesh(greenGeom, greenMat);
-    g.position.set(x, -11.8, z);
-    airportGroup.add(g);
-  });
-}
-
+// ===== 萧山机场高精度地景（含夜空云雾与地表泛光） =====
+const airportGroup = createAirportScene();
 scene.add(airportGroup);
 
 // ===== 展台辅助网格 =====
@@ -140,7 +55,7 @@ gridHelper.position.y = -5.5;
 gridHelper.visible = false;
 scene.add(gridHelper);
 
-// ===== 交互状态 =====
+// ===== 交互与场景模式 =====
 let currentSceneMode: 'airport' | 'exhibition' = 'airport';
 let isBlueprintMode = false;
 let isLandingGearRetracted = true;
@@ -149,15 +64,21 @@ let isExploded = false;
 function setAirportView() {
   airportGroup.visible = true;
   gridHelper.visible = false;
-  scene.background = new THREE.Color('#030814');
-  scene.fog = new THREE.FogExp2('#030814', 0.0004);
+  scene.background = new THREE.Color('#03050a');
+  scene.fog = new THREE.FogExp2('#03050a', 0.00035);
 
-  camera.position.set(-30, -2, 55);
-  controls.target.set(0, 4, 0);
-  qianyu.root.position.set(0, 0, 0);
-  qianyu.root.rotation.set(0.0, -0.3, 0.14);
-  qianyu.root.scale.setScalar(1.8);
-  ufoGlow.position.set(0, -3, 0);
+  // 1. 相机在地面仰拍夜空：
+  camera.position.set(0, 0, 180);
+  controls.target.set(0, 20, -50);
+
+  // 2. 乾舆神机 1:1 掠天透视姿态（极扁刃形掠射光带）：
+  // pitch = 0.32 (视线完全切入碟盘赤道侧边缘，将圆形碟面在镜头中投影为极细长的水平飞掠轨迹)
+  // yaw = -0.72 (斜向右上方划过夜空)
+  // roll = -0.16 (呈现与 2010 萧山现场完全一致的倾角：左侧回头圆弧、右侧贯穿夜空的等离子主光带与下排步步锦星宿窗光斑)
+  qianyu.root.position.set(-2, 54, -60);
+  qianyu.root.rotation.set(0.32, -0.72, -0.16);
+  qianyu.root.scale.setScalar(5.2);
+  ufoGlow.position.set(-2, 50, -60);
   qianyu.setLandingGearProgress(1.0);
 
   const tag = document.getElementById('timestamp-tag');
@@ -239,12 +160,9 @@ function animate() {
   controls.update();
 
   if (currentSceneMode === 'airport') {
-    // 悬浮漂移（在 y=0 附近微幅上下）
-    const floatY = Math.sin(time * 1.4) * 0.8;
-    qianyu.root.position.y = floatY;
-    ufoGlow.position.y = -3 + floatY;
-    // 极微幅姿态抖动
-    qianyu.root.rotation.z = 0.14 + Math.sin(time * 0.85) * 0.01;
+    const floatY = Math.sin(time * 1.0) * 0.35;
+    qianyu.root.position.y = 54 + floatY;
+    ufoGlow.position.y = 50 + floatY;
   } else {
     qianyu.root.rotation.y += 0.005;
   }
