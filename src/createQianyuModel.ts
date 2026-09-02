@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PartMeta, QianyuModelResult, RenderMode } from './types';
 
+// BUILD_VERSION: 20260902_V10_CLEAN
 export function createQianyuModel(): QianyuModelResult {
   const root = new THREE.Group();
   root.name = 'QianyuCraftRoot';
@@ -8,7 +9,6 @@ export function createQianyuModel(): QianyuModelResult {
   const parts: PartMeta[] = [];
   const landingGears: THREE.Group[] = [];
 
-  // 材质
   const bronzeArmorMat = new THREE.MeshStandardMaterial({
     color: '#1e293b',
     metalness: 0.85,
@@ -97,7 +97,7 @@ export function createQianyuModel(): QianyuModelResult {
   equatorRingMesh.position.y = -0.5;
   saucerBodyGroup.add(equatorRingMesh);
 
-  // 2.3 24 宿周天点阵脉冲光斑 (照片中那一串标志亮点)
+  // 2.3 24 宿周天点阵脉冲光斑
   const rimLightsGroup = new THREE.Group();
   rimLightsGroup.name = 'RimPulseBeacons';
   const beaconMeshes: THREE.Mesh[] = [];
@@ -175,11 +175,11 @@ export function createQianyuModel(): QianyuModelResult {
   engineGlowMesh.position.y = -5.2;
   bottomCoreGroup.add(engineGlowMesh);
 
-  // 2.6 三足起落架系统
+  // 2.6 三足起落架系统 (使用合法字符串 'gear_' + i)
   for (let i = 0; i < 3; i++) {
     const angle = (i / 3) * Math.PI * 2;
     const gearGroup = new THREE.Group();
-    gearGroup.name = LandingGear_;
+    gearGroup.name = 'gear_' + String(i + 1);
 
     const dist = 16.0;
     gearGroup.position.set(Math.cos(angle) * dist, -3.5, Math.sin(angle) * dist);
