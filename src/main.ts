@@ -13,119 +13,132 @@ renderer.toneMappingExposure = 1.2;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#020409');
-// 极淡远雾，接近黑暗天际
-scene.fog = new THREE.FogExp2('#020409', 0.0008);
+scene.fog = new THREE.FogExp2('#020409', 0.003);
 
-// ===== 相机：地面仰望夜空 =====
-// 复现实拍角度：相机在地面高度(y≈0)，向上仰望悬浮在高空的飞碟
-const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 5000);
-camera.position.set(-8, 1, 55);   // 地面低位，稍微偏左
+// ===== 相机：模拟实拍视角 =====
+// 原图：站在跑道边（低位），抬头仰望，飞碟在画面上方 2/3 处掠过
+// 相机 y = -5（低于地面），仰角望向 y=20 的飞碟
+const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 3000);
+camera.position.set(-22, -5, 60);
 
 // ===== OrbitControls =====
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
-controls.maxPolarAngle = Math.PI * 0.92;  // 允许仰望
-controls.minDistance = 3;
-controls.maxDistance = 800;
-controls.target.set(0, 22, 0);   // 注视目标：高空飞碟位置
+controls.maxPolarAngle = Math.PI * 0.95;
+controls.minDistance = 2;
+controls.maxDistance = 600;
+controls.target.set(0, 18, 0);
 controls.update();
 
 // ===== 光照 =====
-const ambientLight = new THREE.AmbientLight('#ffffff', 0.5);
+const ambientLight = new THREE.AmbientLight('#ffffff', 0.55);
 scene.add(ambientLight);
 
-const moonLight = new THREE.DirectionalLight('#b0c8ff', 1.8);
-moonLight.position.set(40, 60, 30);
+// 月光主灯（斜 45° 从右上照向飞碟）
+const moonLight = new THREE.DirectionalLight('#b0c8ff', 2.0);
+moonLight.position.set(30, 50, 20);
 scene.add(moonLight);
 
-// 飞碟自身向下投射的高能蓝白点光源（照亮附近云气）
-const ufoGlow = new THREE.PointLight('#38bdf8', 8.0, 120);
-ufoGlow.position.set(0, 22, 0);
-scene.add(ufoGlow);
-
-// 额外补光：从左前方打亮飞碟上表面（让穹顶层次可见）
-const rimLight = new THREE.SpotLight('#fbbf24', 5.0, 200, Math.PI * 0.18);
-rimLight.position.set(-35, 45, 40);
-rimLight.target.position.set(0, 22, 0);
+// 侧补光（左前方，凸显穹顶层次）
+const rimLight = new THREE.SpotLight('#fbbf24', 4.5, 180, Math.PI * 0.20);
+rimLight.position.set(-35, 38, 35);
+rimLight.target.position.set(0, 18, 0);
 scene.add(rimLight);
 scene.add(rimLight.target);
 
+// 飞碟自发光点光（蓝白色，向下照亮机腹与地面）
+const ufoGlow = new THREE.PointLight('#38bdf8', 6.0, 100);
+ufoGlow.position.set(0, 16, 0);
+scene.add(ufoGlow);
+
 // ===== 乾舆飞碟模型 =====
 const qianyu = createQianyuModel();
-// 悬停高空，对应实拍的夜空高位
-qianyu.root.position.set(0, 22, 0);
-// 轻微倾斜，模拟实拍飞行姿态（不要倾太大，保持碟形可识别）
-qianyu.root.rotation.set(0.08, -0.25, 0.10);
-// 缩放：放大使飞碟在画面中有分量
-qianyu.root.scale.setScalar(1.5);
+// 位置：夜空高位，偏右，对应原图飞碟在画面右上区域
+qianyu.root.position.set(5, 20, -5);
+// 姿态：轻微向右前方倾斜飞行，保持碟形清晰可辨
+qianyu.root.rotation.set(0.05, -0.30, 0.08);
+qianyu.root.scale.setScalar(1.6);
 scene.add(qianyu.root);
-qianyu.setLandingGearProgress(1.0);  // 起落架收起
+qianyu.setLandingGearProgress(1.0);
 
-// ===== 场景：萧山机场极暗夜景（对照实拍原图）=====
-// 原图：画面下方仅有远处地平线的一排橙黄灯光，其余全黑
+// ===== 萧山机场夜景 (严格对照实拍原图) =====
+// 原图特征：
+//   - 画面下 1/3：极暗地面
+//   - 地平线处：一条橙黄色连续灯光带（航站楼/廊桥背光）
+//   - 左侧：细塔（机场塔台）顶有指示灯
+//   - 散布橙黄暖光点（机坪/停车场）
+//   - 全画面极暗，只有这些点光和地平线亮带
 const airportGroup = new THREE.Group();
 
-// 1. 大地黑色地坪
-const groundGeom = new THREE.PlaneGeometry(4000, 4000);
-const groundMat = new THREE.MeshStandardMaterial({
-  color: '#010205',
-  roughness: 1.0,
-  metalness: 0.0,
-});
-const ground = new THREE.Mesh(groundGeom, groundMat);
+// 1. 黑色地坪
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(3000, 3000),
+  new THREE.MeshStandardMaterial({ color: '#010205', roughness: 1.0 })
+);
 ground.rotation.x = -Math.PI / 2;
-ground.position.y = -8;
+ground.position.y = -9;
 airportGroup.add(ground);
 
-// 2. 远景萧山机场航站楼：仅为极暗地平线上的橙黄灯光带（距相机 900m）
-// 高度接近地平线，只露出一条细灯光
-// 航站楼灯光带：更亮、更宽、更明显，对应实拍图中清晰可见的橙黄光带
-const terminalLightGeom = new THREE.BoxGeometry(550, 3.5, 2);
-const terminalLightMat = new THREE.MeshBasicMaterial({ color: '#f59e0b' });
-const terminalLight = new THREE.Mesh(terminalLightGeom, terminalLightMat);
-terminalLight.position.set(0, -7, -600);
-airportGroup.add(terminalLight);
+// 2. 地平线橙黄灯光带（航站楼）
+// 距相机约 180m，高度 -8.5（接近地平线但在相机仰视范围内）
+const terminalGeom = new THREE.BoxGeometry(420, 2.5, 3);
+const terminalMat = new THREE.MeshBasicMaterial({ color: '#f59e0b' });
+const terminal = new THREE.Mesh(terminalGeom, terminalMat);
+terminal.position.set(0, -8.5, -180);
+airportGroup.add(terminal);
 
-// 3. 左侧塔台指示灯（实拍图左侧有细高的塔台）
-const towerBodyGeom = new THREE.CylinderGeometry(0.8, 1.2, 25, 8);
-const towerBodyMat = new THREE.MeshBasicMaterial({ color: '#1e293b' });
-const towerBody = new THREE.Mesh(towerBodyGeom, towerBodyMat);
-towerBody.position.set(-220, 4.5, -600);
+// 航站楼上方第二条细亮带（廊桥内透光）
+const terminal2 = new THREE.Mesh(
+  new THREE.BoxGeometry(380, 0.8, 2),
+  new THREE.MeshBasicMaterial({ color: '#fbbf24' })
+);
+terminal2.position.set(0, -6.5, -180);
+airportGroup.add(terminal2);
+
+// 3. 左侧机场塔台（对应原图左侧细高塔）
+const towerBody = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.7, 1.0, 20, 8),
+  new THREE.MeshBasicMaterial({ color: '#1e2d40' })
+);
+towerBody.position.set(-170, -0.5, -180);
 airportGroup.add(towerBody);
 
-const towerLightGeom = new THREE.SphereGeometry(1.5, 8, 8);
-const towerLightMat = new THREE.MeshBasicMaterial({ color: '#fbbf24' });
-const towerLightMesh = new THREE.Mesh(towerLightGeom, towerLightMat);
-towerLightMesh.position.set(-220, 18, -600);
-airportGroup.add(towerLightMesh);
+// 塔台顶部指示灯球
+const towerLight = new THREE.Mesh(
+  new THREE.SphereGeometry(1.2, 8, 8),
+  new THREE.MeshBasicMaterial({ color: '#fef08a' })
+);
+towerLight.position.set(-170, 10, -180);
+airportGroup.add(towerLight);
 
-// 4. 地平线散点灯（机场周边的分散点光灯，仅在远处地平线区域）
-const ptGeom = new THREE.SphereGeometry(0.4, 6, 6);
+// 4. 地平线散点暖光（机坪/机场周边灯）
+const ptGeom = new THREE.SphereGeometry(0.35, 6, 6);
 const ptMat = new THREE.MeshBasicMaterial({ color: '#f59e0b' });
-for (let i = 0; i < 80; i++) {
+for (let i = 0; i < 60; i++) {
   const pt = new THREE.Mesh(ptGeom, ptMat);
-  const px = (Math.random() - 0.5) * 550;
-  const pz = -450 - Math.random() * 200;
-  pt.position.set(px, -7.2, pz);
+  pt.position.set(
+    (Math.random() - 0.5) * 420,
+    -8.6,
+    -140 - Math.random() * 100
+  );
   airportGroup.add(pt);
 }
 
-// 5. 少量跑道边灯（绿色，极暗，靠近地平线）
-const greenPtGeom = new THREE.SphereGeometry(0.3, 6, 6);
-const greenPtMat = new THREE.MeshBasicMaterial({ color: '#10b981' });
-for (let z = -100; z >= -600; z -= 50) {
-  const gl = new THREE.Mesh(greenPtGeom, greenPtMat);
-  gl.position.set(-90, -7.5, z);
-  airportGroup.add(gl);
-  const gr = new THREE.Mesh(greenPtGeom, greenPtMat);
-  gr.position.set(90, -7.5, z);
-  airportGroup.add(gr);
+// 5. 跑道边绿色导航灯（对应原图地面零星绿点）
+const greenGeom = new THREE.SphereGeometry(0.25, 6, 6);
+const greenMat = new THREE.MeshBasicMaterial({ color: '#10b981' });
+for (let z = -30; z >= -180; z -= 35) {
+  [-75, 75].forEach((x) => {
+    const g = new THREE.Mesh(greenGeom, greenMat);
+    g.position.set(x, -8.8, z);
+    airportGroup.add(g);
+  });
 }
 
 scene.add(airportGroup);
 
-// ===== 展台模式辅助网格 =====
+// ===== 展台辅助网格 =====
 const gridHelper = new THREE.GridHelper(40, 20, '#d4af37', '#1e293b');
 gridHelper.visible = false;
 scene.add(gridHelper);
@@ -140,14 +153,15 @@ function setAirportView() {
   airportGroup.visible = true;
   gridHelper.visible = false;
   scene.background = new THREE.Color('#020409');
-  scene.fog = new THREE.FogExp2('#020409', 0.0008);
+  scene.fog = new THREE.FogExp2('#020409', 0.003);
 
-  camera.position.set(-8, 1, 55);
-  controls.target.set(0, 22, 0);
-  qianyu.root.position.set(0, 22, 0);
-  qianyu.root.rotation.set(0.08, -0.25, 0.10);
-  qianyu.root.scale.setScalar(1.5);
-  ufoGlow.position.set(0, 22, 0);
+  camera.position.set(-22, -5, 60);
+  controls.target.set(0, 18, 0);
+  qianyu.root.position.set(5, 20, -5);
+  qianyu.root.rotation.set(0.05, -0.30, 0.08);
+  qianyu.root.scale.setScalar(1.6);
+  ufoGlow.position.set(5, 18, -5);
+  rimLight.target.position.set(5, 18, -5);
   qianyu.setLandingGearProgress(1.0);
 
   const tag = document.getElementById('timestamp-tag');
@@ -164,12 +178,13 @@ function setExhibitionView() {
   scene.background = new THREE.Color('#0d1117');
   scene.fog = null as any;
 
-  camera.position.set(18, 10, 25);
+  camera.position.set(18, 10, 26);
   controls.target.set(0, 2, 0);
   qianyu.root.position.set(0, 3, 0);
   qianyu.root.rotation.set(0, 0, 0);
   qianyu.root.scale.setScalar(1.0);
-  ufoGlow.position.set(0, 3, 0);
+  ufoGlow.position.set(0, 2, 0);
+  rimLight.target.position.set(0, 3, 0);
   qianyu.setLandingGearProgress(0.0);
 
   const tag = document.getElementById('timestamp-tag');
@@ -182,37 +197,29 @@ function setExhibitionView() {
 
 function updateSceneUI(mode: 'airport' | 'exhibition') {
   currentSceneMode = mode;
-  if (mode === 'airport') {
-    setAirportView();
-  } else {
-    setExhibitionView();
-  }
+  if (mode === 'airport') setAirportView();
+  else setExhibitionView();
   controls.update();
 }
 
-const btnSceneToggle = document.getElementById('btn-scene-toggle');
-const btnRenderMode = document.getElementById('btn-render-mode');
-const btnLandingGear = document.getElementById('btn-landing-gear');
-const btnExplode = document.getElementById('btn-explode');
-const btnResetView = document.getElementById('btn-reset-view');
-
-btnSceneToggle?.addEventListener('click', () => {
+// 按钮绑定
+document.getElementById('btn-scene-toggle')?.addEventListener('click', () => {
   updateSceneUI(currentSceneMode === 'airport' ? 'exhibition' : 'airport');
 });
 
-btnRenderMode?.addEventListener('click', () => {
+document.getElementById('btn-render-mode')?.addEventListener('click', () => {
   isBlueprintMode = !isBlueprintMode;
   qianyu.setRenderMode(isBlueprintMode ? 'blueprint' : 'bronze');
-  btnRenderMode.classList.toggle('active', isBlueprintMode);
+  document.getElementById('btn-render-mode')?.classList.toggle('active', isBlueprintMode);
 });
 
-btnLandingGear?.addEventListener('click', () => {
+document.getElementById('btn-landing-gear')?.addEventListener('click', () => {
   isLandingGearRetracted = !isLandingGearRetracted;
   qianyu.setLandingGearProgress(isLandingGearRetracted ? 1.0 : 0.0);
-  btnLandingGear.classList.toggle('active', isLandingGearRetracted);
+  document.getElementById('btn-landing-gear')?.classList.toggle('active', isLandingGearRetracted);
 });
 
-btnExplode?.addEventListener('click', () => {
+document.getElementById('btn-explode')?.addEventListener('click', () => {
   isExploded = !isExploded;
   qianyu.parts.forEach((p) => {
     const target = isExploded
@@ -220,10 +227,10 @@ btnExplode?.addEventListener('click', () => {
       : p.originPos;
     p.mesh.position.copy(target);
   });
-  btnExplode.classList.toggle('active', isExploded);
+  document.getElementById('btn-explode')?.classList.toggle('active', isExploded);
 });
 
-btnResetView?.addEventListener('click', () => {
+document.getElementById('btn-reset-view')?.addEventListener('click', () => {
   updateSceneUI(currentSceneMode);
 });
 
@@ -243,11 +250,12 @@ function animate() {
   controls.update();
 
   if (currentSceneMode === 'airport') {
-    // 缓慢悬浮漂移
-    qianyu.root.position.y = 22 + Math.sin(time * 1.4) * 1.0;
-    ufoGlow.position.y = 22 + Math.sin(time * 1.4) * 1.0;
-    // 微幅姿态摇晃（幅度很小，保持碟形清晰）
-    qianyu.root.rotation.z = 0.10 + Math.sin(time * 0.9) * 0.015;
+    // 缓慢悬浮
+    const floatY = Math.sin(time * 1.4) * 0.9;
+    qianyu.root.position.y = 20 + floatY;
+    ufoGlow.position.y = 18 + floatY;
+    // 极微幅倾斜抖动
+    qianyu.root.rotation.z = 0.08 + Math.sin(time * 0.85) * 0.012;
   } else {
     qianyu.root.rotation.y += 0.005;
   }
