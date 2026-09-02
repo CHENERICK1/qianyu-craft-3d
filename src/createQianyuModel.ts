@@ -1,7 +1,14 @@
 import * as THREE from 'three';
 import { PartMeta, QianyuModelResult, RenderMode } from './types';
 
-// BUILD_VERSION: 20260902_V10_CLEAN
+/**
+ * 乾舆一号 · 2010 萧山机场 UFO 真实慢门流光神机
+ * 
+ * 核心对齐 2010 萧山机场实拍目击照片：
+ * 1. 【发光流光弧带就是主体】：照片中那道横跨天际、极其耀眼的白色强光弧线（带金黄色等离子尾晕）是整个飞碟的主轮廓。
+ * 2. 【光点阵列嵌入机身】：照片中那一排 24 宿脉冲白光点阵自然顺应流光弧度镶嵌在盘体边缘。
+ * 3. 【精细度与真实感】：消除过大的突兀三角形/大几何块，优化玄铁装甲与古铜金构架细节。
+ */
 export function createQianyuModel(): QianyuModelResult {
   const root = new THREE.Group();
   root.name = 'QianyuCraftRoot';
@@ -9,34 +16,45 @@ export function createQianyuModel(): QianyuModelResult {
   const parts: PartMeta[] = [];
   const landingGears: THREE.Group[] = [];
 
-  const bronzeArmorMat = new THREE.MeshStandardMaterial({
-    color: '#1e293b',
-    metalness: 0.85,
-    roughness: 0.25,
+  // ================= 材质定义 =================
+  const armorMat = new THREE.MeshStandardMaterial({
+    color: '#080d1a',
+    metalness: 0.92,
+    roughness: 0.22,
+    envMapIntensity: 1.5,
   });
 
   const goldTrimMat = new THREE.MeshStandardMaterial({
-    color: '#eab308',
-    metalness: 0.9,
-    roughness: 0.2,
-    emissive: '#713f12',
-    emissiveIntensity: 0.3,
+    color: '#d97706',
+    metalness: 0.95,
+    roughness: 0.18,
+    emissive: '#78350f',
+    emissiveIntensity: 0.35,
   });
 
-  // 核心发光体：超长曝光白炽等离子流光机身主弧刃 (萧山 UFO 照片主体光弧)
-  const arcGlowMat = new THREE.MeshStandardMaterial({
+  // 主体高能白炽光弧（萧山照片核心光带）
+  const coreArcMat = new THREE.MeshStandardMaterial({
     color: '#ffffff',
-    emissive: '#fef08a',
-    emissiveIntensity: 6.5,
-    roughness: 0.1,
+    emissive: '#ffffff',
+    emissiveIntensity: 9.0,
+    roughness: 0.05,
   });
 
-  const plasmaHaloMat = new THREE.MeshBasicMaterial({
+  // 弧光外层等离子能量光晕（金色半透辉光）
+  const haloArcMat = new THREE.MeshBasicMaterial({
     color: '#fbbf24',
     transparent: true,
-    opacity: 0.75,
+    opacity: 0.65,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
+  });
+
+  // 24 宿周天点阵光斑（发光白球）
+  const beaconMat = new THREE.MeshStandardMaterial({
+    color: '#ffffff',
+    emissive: '#f0f9ff',
+    emissiveIntensity: 8.5,
+    roughness: 0.05,
   });
 
   const blueprintMat = new THREE.MeshBasicMaterial({
@@ -46,90 +64,87 @@ export function createQianyuModel(): QianyuModelResult {
     opacity: 0.85,
   });
 
-  // 2.1 巨大弧形流光机身主刃 (长达 80 米跨度，与照片中横贯夜空的发光弧完全一致)
+  // ================= 1. 巨大流光主弧翼身 (横跨夜空的等离子主弧刃) =================
   const arcWingGroup = new THREE.Group();
   arcWingGroup.name = 'MainArcLuminousBody';
 
   const arcPoints: THREE.Vector3[] = [];
-  for (let i = 0; i <= 60; i++) {
-    const t = i / 60;
+  for (let i = 0; i <= 80; i++) {
+    const t = i / 80;
     const angle = (t - 0.5) * Math.PI * 0.92;
-    const r = 32.0;
-    const x = Math.sin(angle) * r * 1.4;
-    const y = -Math.cos(angle) * 4.5 + 4.5;
-    const z = (Math.cos(angle) - 1.0) * r * 0.5;
+    const r = 38.0;
+    const x = Math.sin(angle) * r * 1.35;
+    const y = -Math.cos(angle) * 5.5 + 5.5;
+    const z = (Math.cos(angle) - 1.0) * r * 0.45;
     arcPoints.push(new THREE.Vector3(x, y, z));
   }
   const arcSpline = new THREE.CatmullRomCurve3(arcPoints);
 
-  const arcTubeGeom = new THREE.TubeGeometry(arcSpline, 64, 1.8, 16, false);
-  const arcTubeMesh = new THREE.Mesh(arcTubeGeom, arcGlowMat);
-  arcTubeMesh.castShadow = true;
-  arcWingGroup.add(arcTubeMesh);
+  // 核心白炽强光管
+  const coreTubeGeom = new THREE.TubeGeometry(arcSpline, 80, 1.4, 16, false);
+  const coreTubeMesh = new THREE.Mesh(coreTubeGeom, coreArcMat);
+  arcWingGroup.add(coreTubeMesh);
 
-  const plasmaTubeGeom = new THREE.TubeGeometry(arcSpline, 64, 4.2, 16, false);
-  const plasmaTubeMesh = new THREE.Mesh(plasmaTubeGeom, plasmaHaloMat);
-  arcWingGroup.add(plasmaTubeMesh);
+  // 外层等离子光晕管
+  const haloTubeGeom = new THREE.TubeGeometry(arcSpline, 80, 3.8, 16, false);
+  const haloTubeMesh = new THREE.Mesh(haloTubeGeom, haloArcMat);
+  arcWingGroup.add(haloTubeMesh);
 
-  // 2.2 乾元双曲抛物面碟身
+  // ================= 2. 乾舆玄铁双曲抛物面碟身 =================
   const saucerBodyGroup = new THREE.Group();
   saucerBodyGroup.name = 'SaucerMainBody';
 
-  const upperDiscGeom = new THREE.CylinderGeometry(6.0, 28.0, 4.5, 48, 1, false);
+  // 上天盖
+  const upperDiscGeom = new THREE.CylinderGeometry(6.0, 34.0, 4.2, 64, 1, false);
   upperDiscGeom.scale(1.3, 1.0, 0.85);
-  const upperDiscMesh = new THREE.Mesh(upperDiscGeom, bronzeArmorMat);
-  upperDiscMesh.position.y = 1.2;
+  const upperDiscMesh = new THREE.Mesh(upperDiscGeom, armorMat);
+  upperDiscMesh.position.y = 1.0;
   upperDiscMesh.castShadow = true;
   upperDiscMesh.receiveShadow = true;
   saucerBodyGroup.add(upperDiscMesh);
 
-  const lowerDiscGeom = new THREE.CylinderGeometry(28.0, 9.0, 4.0, 48, 1, false);
+  // 下地盘
+  const lowerDiscGeom = new THREE.CylinderGeometry(34.0, 10.0, 3.8, 64, 1, false);
   lowerDiscGeom.scale(1.3, 1.0, 0.85);
-  const lowerDiscMesh = new THREE.Mesh(lowerDiscGeom, bronzeArmorMat);
-  lowerDiscMesh.position.y = -2.5;
+  const lowerDiscMesh = new THREE.Mesh(lowerDiscGeom, armorMat);
+  lowerDiscMesh.position.y = -2.4;
   lowerDiscMesh.castShadow = true;
   saucerBodyGroup.add(lowerDiscMesh);
 
-  const equatorRingGeom = new THREE.TorusGeometry(27.8, 1.1, 16, 64);
-  equatorRingGeom.scale(1.3, 0.6, 0.85);
-  const equatorRingMesh = new THREE.Mesh(equatorRingGeom, goldTrimMat);
-  equatorRingMesh.rotation.x = Math.PI / 2;
-  equatorRingMesh.position.y = -0.5;
-  saucerBodyGroup.add(equatorRingMesh);
+  // 赤道周天鎏金嵌带
+  const ringGeom = new THREE.TorusGeometry(33.8, 0.9, 16, 64);
+  ringGeom.scale(1.3, 0.6, 0.85);
+  const ringMesh = new THREE.Mesh(ringGeom, goldTrimMat);
+  ringMesh.rotation.x = Math.PI / 2;
+  ringMesh.position.y = -0.5;
+  saucerBodyGroup.add(ringMesh);
 
-  // 2.3 24 宿周天点阵脉冲光斑
+  // ================= 3. 24 宿周天点阵脉冲光球 (照片标志性发光白球) =================
   const rimLightsGroup = new THREE.Group();
   rimLightsGroup.name = 'RimPulseBeacons';
   const beaconMeshes: THREE.Mesh[] = [];
   const beaconCount = 24;
 
-  const beaconSphereGeom = new THREE.SphereGeometry(0.85, 16, 16);
+  const beaconGeom = new THREE.SphereGeometry(1.0, 16, 16);
   for (let i = 0; i < beaconCount; i++) {
     const angle = (i / beaconCount) * Math.PI * 2;
-    const isGua = i % 3 === 0;
-    const mat = new THREE.MeshStandardMaterial({
-      color: '#ffffff',
-      emissive: isGua ? '#38bdf8' : '#fbbf24',
-      emissiveIntensity: isGua ? 8.5 : 5.5,
-      roughness: 0.1,
-    });
-    const bMesh = new THREE.Mesh(beaconSphereGeom, mat);
-    const rx = Math.cos(angle) * 28.0 * 1.3;
-    const rz = Math.sin(angle) * 28.0 * 0.85;
+    const bMesh = new THREE.Mesh(beaconGeom, beaconMat);
+    const rx = Math.cos(angle) * 34.0 * 1.3;
+    const rz = Math.sin(angle) * 34.0 * 0.85;
     bMesh.position.set(rx, -0.5, rz);
     rimLightsGroup.add(bMesh);
     beaconMeshes.push(bMesh);
   }
   saucerBodyGroup.add(rimLightsGroup);
 
-  // 2.4 乾顶天池与太极定风珠
+  // ================= 4. 乾顶天池与太极定风珠 =================
   const topCrownGroup = new THREE.Group();
   topCrownGroup.name = 'TopCrownAndPearl';
 
   for (let step = 0; step < 3; step++) {
-    const stepGeom = new THREE.CylinderGeometry(3.0 - step * 0.8, 5.0 - step * 0.9, 0.9, 32);
+    const stepGeom = new THREE.CylinderGeometry(3.0 - step * 0.8, 5.0 - step * 0.9, 0.8, 32);
     const stepMesh = new THREE.Mesh(stepGeom, goldTrimMat);
-    stepMesh.position.y = 3.6 + step * 0.85;
+    stepMesh.position.y = 3.4 + step * 0.75;
     topCrownGroup.add(stepMesh);
   }
 
@@ -137,62 +152,62 @@ export function createQianyuModel(): QianyuModelResult {
   const pearlMat = new THREE.MeshStandardMaterial({
     color: '#e0f2fe',
     emissive: '#38bdf8',
-    emissiveIntensity: 7.0,
+    emissiveIntensity: 8.0,
     roughness: 0.05,
   });
   const pearlMesh = new THREE.Mesh(pearlGeom, pearlMat);
-  pearlMesh.position.y = 7.0;
+  pearlMesh.position.y = 6.6;
   topCrownGroup.add(pearlMesh);
 
-  const crownHaloGeom = new THREE.TorusGeometry(3.6, 0.25, 16, 48);
+  const crownHaloGeom = new THREE.TorusGeometry(3.6, 0.22, 16, 48);
   const crownHaloMat = new THREE.MeshStandardMaterial({
     color: '#38bdf8',
     emissive: '#0284c7',
-    emissiveIntensity: 4.5,
+    emissiveIntensity: 5.0,
   });
   const crownHaloMesh = new THREE.Mesh(crownHaloGeom, crownHaloMat);
   crownHaloMesh.rotation.x = Math.PI / 3;
-  crownHaloMesh.position.y = 7.0;
+  crownHaloMesh.position.y = 6.6;
   topCrownGroup.add(crownHaloMesh);
 
-  // 2.5 底部反重力导流核心
+  // ================= 5. 底部反重力导流核心 =================
   const bottomCoreGroup = new THREE.Group();
   bottomCoreGroup.name = 'BottomAntigravityEngine';
 
-  const engineConeGeom = new THREE.ConeGeometry(7.0, 4.5, 32, 1, true);
+  const engineConeGeom = new THREE.ConeGeometry(7.5, 3.8, 32, 1, true);
   engineConeGeom.rotateX(Math.PI);
-  const engineConeMesh = new THREE.Mesh(engineConeGeom, bronzeArmorMat);
-  engineConeMesh.position.y = -4.5;
+  const engineConeMesh = new THREE.Mesh(engineConeGeom, armorMat);
+  engineConeMesh.position.y = -4.2;
   bottomCoreGroup.add(engineConeMesh);
 
-  const engineGlowGeom = new THREE.CylinderGeometry(5.0, 0.5, 2.5, 32);
+  const engineGlowGeom = new THREE.CylinderGeometry(4.8, 0.5, 2.0, 32);
   const engineGlowMat = new THREE.MeshStandardMaterial({
     color: '#ffffff',
     emissive: '#0284c7',
-    emissiveIntensity: 6.0,
+    emissiveIntensity: 6.5,
   });
   const engineGlowMesh = new THREE.Mesh(engineGlowGeom, engineGlowMat);
-  engineGlowMesh.position.y = -5.2;
+  engineGlowMesh.position.y = -4.8;
   bottomCoreGroup.add(engineGlowMesh);
 
-  // 2.6 三足起落架系统 (使用合法字符串 'gear_' + i)
+  // ================= 6. 三足起落架系统 =================
   for (let i = 0; i < 3; i++) {
     const angle = (i / 3) * Math.PI * 2;
     const gearGroup = new THREE.Group();
     gearGroup.name = 'gear_' + String(i + 1);
 
     const dist = 16.0;
-    gearGroup.position.set(Math.cos(angle) * dist, -3.5, Math.sin(angle) * dist);
+    gearGroup.position.set(Math.cos(angle) * dist, -3.2, Math.sin(angle) * dist);
     gearGroup.rotation.y = -angle;
 
-    const strutGeom = new THREE.CylinderGeometry(0.5, 0.65, 5.5, 16);
+    const strutGeom = new THREE.CylinderGeometry(0.45, 0.6, 5.0, 16);
     const strutMesh = new THREE.Mesh(strutGeom, goldTrimMat);
-    strutMesh.position.y = -2.75;
+    strutMesh.position.y = -2.5;
     gearGroup.add(strutMesh);
 
-    const footGeom = new THREE.CylinderGeometry(2.2, 3.0, 0.8, 6);
-    const footMesh = new THREE.Mesh(footGeom, bronzeArmorMat);
-    footMesh.position.y = -5.6;
+    const footGeom = new THREE.CylinderGeometry(2.0, 2.8, 0.7, 6);
+    const footMesh = new THREE.Mesh(footGeom, armorMat);
+    footMesh.position.y = -5.0;
     gearGroup.add(footMesh);
 
     landingGears.push(gearGroup);
@@ -238,7 +253,7 @@ export function createQianyuModel(): QianyuModelResult {
       const isBP = mode === 'blueprint';
       root.traverse((child) => {
         if (child instanceof THREE.Mesh) {
-          if (child === arcTubeMesh || child === plasmaTubeMesh || child === pearlMesh) {
+          if (child === coreTubeMesh || child === haloTubeMesh || child === pearlMesh) {
             return;
           }
           child.material = isBP ? blueprintMat : child.userData.originMat || child.material;
@@ -251,7 +266,7 @@ export function createQianyuModel(): QianyuModelResult {
     setLandingGearProgress: (progress: number) => {
       currentLandingProgress = THREE.MathUtils.clamp(progress, 0, 1);
       landingGears.forEach((gear) => {
-        gear.position.y = -3.5 + currentLandingProgress * 5.0;
+        gear.position.y = -3.2 + currentLandingProgress * 4.5;
         gear.scale.setScalar(1.0 - currentLandingProgress * 0.8);
       });
     },
@@ -259,17 +274,15 @@ export function createQianyuModel(): QianyuModelResult {
       pearlMesh.rotation.y += delta * 1.5;
       crownHaloMesh.rotation.z += delta * 2.2;
 
-      const now = performance.now() * 0.006;
+      const now = performance.now() * 0.005;
       beaconMeshes.forEach((mesh, idx) => {
         const phase = now + (idx / beaconCount) * Math.PI * 4;
         const wave = (Math.sin(phase) + 1) * 0.5;
-        mesh.scale.setScalar(0.7 + wave * 1.6);
-        const m = mesh.material as THREE.MeshStandardMaterial;
-        m.emissiveIntensity = 2.5 + wave * 6.5;
+        mesh.scale.setScalar(0.8 + wave * 1.3);
       });
 
-      arcGlowMat.emissiveIntensity = 5.5 + Math.sin(now * 0.8) * 1.8;
-      plasmaHaloMat.opacity = 0.6 + Math.sin(now * 1.2) * 0.25;
+      coreArcMat.emissiveIntensity = 8.5 + Math.sin(now * 0.8) * 2.0;
+      haloArcMat.opacity = 0.6 + Math.sin(now * 1.2) * 0.2;
     },
   };
 }
