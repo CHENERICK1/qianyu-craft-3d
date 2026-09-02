@@ -1,88 +1,127 @@
 import * as THREE from 'three';
 
-export interface UFOFlightEffectsResult {
+export interface UFOEnhancedEffectsResult {
   group: THREE.Group;
   update: (time: number) => void;
 }
 
-export function createUFOFlightEffects(): UFOFlightEffectsResult {
+export function createUFOEnhancedEffects(qianyuRoot: THREE.Group): UFOEnhancedEffectsResult {
   const group = new THREE.Group();
-  group.name = 'UFOFlightEffects';
+  group.name = 'UFOEnhancedEffects';
 
-  // 1. 萧山夜空主曝光强光弧线 (还原照片中划破夜空的金色/亮白粗光轨)
+  // 1. 照片中贯穿天际的【超长曝光弧形强光轨迹】（亮黄白高光带）
   const curvePoints: THREE.Vector3[] = [];
-  for (let i = 0; i <= 60; i++) {
-    const t = i / 60;
-    const x = -160 + t * 320;
-    const y = 35 + Math.sin(t * Math.PI * 0.95) * 45 + (1 - t) * 15;
-    const z = -140 + Math.cos(t * Math.PI * 0.8) * 80;
+  for (let i = 0; i <= 80; i++) {
+    const t = i / 80;
+    const x = -200 + t * 400;
+    const y = 25 + Math.sin(t * Math.PI * 0.9) * 55 + (1 - t) * 20;
+    const z = -180 + Math.cos(t * Math.PI * 0.75) * 110;
     curvePoints.push(new THREE.Vector3(x, y, z));
   }
 
-  const curve = new THREE.CatmullRomCurve3(curvePoints);
-  const tubeGeom = new THREE.TubeGeometry(curve, 100, 1.8, 12, false);
-  const tubeMat = new THREE.MeshStandardMaterial({
-    color: '#fef08a',
+  const mainCurve = new THREE.CatmullRomCurve3(curvePoints);
+  
+  // 核心白炽强光管
+  const coreTubeGeom = new THREE.TubeGeometry(mainCurve, 120, 1.2, 12, false);
+  const coreTubeMat = new THREE.MeshBasicMaterial({
+    color: '#ffffff',
+    transparent: true,
+    opacity: 0.95,
+  });
+  const coreTrail = new THREE.Mesh(coreTubeGeom, coreTubeMat);
+  group.add(coreTrail);
+
+  // 外层金黄色电离等离子光晕
+  const outerTubeGeom = new THREE.TubeGeometry(mainCurve, 120, 3.8, 12, false);
+  const outerTubeMat = new THREE.MeshStandardMaterial({
+    color: '#fbbf24',
     emissive: '#f59e0b',
     emissiveIntensity: 3.5,
-    roughness: 0.1,
+    roughness: 0.2,
     transparent: true,
-    opacity: 0.92,
+    opacity: 0.55,
+    blending: THREE.AdditiveBlending,
   });
-  const lightTrail = new THREE.Mesh(tubeGeom, tubeMat);
-  group.add(lightTrail);
+  const outerTrail = new THREE.Mesh(outerTubeGeom, outerTubeMat);
+  group.add(outerTrail);
 
-  // 2. 次级光轨虚线与频闪光斑点阵 (照片下方排成一串的间断光点)
-  const pulseCount = 36;
-  const pulseGeom = new THREE.BufferGeometry();
-  const pulsePositions: number[] = [];
-  const pulseColors: number[] = [];
-  const baseColor = new THREE.Color('#fef08a');
-  const accentColor = new THREE.Color('#38bdf8');
+  // 2. 乾舆盘体边缘【24 宿周天外缘点阵光斑系统】（原图中那串标志性点状光斑与飞碟轮廓一体化）
+  const rimLightsGroup = new THREE.Group();
+  rimLightsGroup.name = 'QianyuRimPulseLights';
+  const rimCount = 24;
+  const rimMeshes: THREE.Mesh[] = [];
+  const rimRadius = 7.6; // 紧贴 15m 直径乾舆边缘外圈
 
-  for (let i = 0; i < pulseCount; i++) {
-    const t = i / pulseCount;
-    const pt = curve.getPoint(t);
-    // 稍微在主光轨下方偏移
-    pulsePositions.push(pt.x + 3, pt.y - 6, pt.z + 5);
-    const col = i % 2 === 0 ? baseColor : accentColor;
-    pulseColors.push(col.r, col.g, col.b);
+  const sphereGeom = new THREE.SphereGeometry(0.35, 16, 16);
+  for (let i = 0; i < rimCount; i++) {
+    const angle = (i / rimCount) * Math.PI * 2;
+    const isMajor = i % 3 === 0; // 八卦主方位
+    const mat = new THREE.MeshStandardMaterial({
+      color: isMajor ? '#ffffff' : '#fde047',
+      emissive: isMajor ? '#38bdf8' : '#eab308',
+      emissiveIntensity: isMajor ? 5.0 : 3.5,
+      roughness: 0.1,
+    });
+    const m = new THREE.Mesh(sphereGeom, mat);
+    m.position.set(Math.cos(angle) * rimRadius, 0, Math.sin(angle) * rimRadius);
+    rimLightsGroup.add(m);
+    rimMeshes.push(m);
   }
 
-  pulseGeom.setAttribute('position', new THREE.Float32BufferAttribute(pulsePositions, 3));
-  pulseGeom.setAttribute('color', new THREE.Float32BufferAttribute(pulseColors, 3));
+  // 将边缘光斑直接挂载到乾舆模型根节点上，随着飞碟姿态与运动一体化！
+  qianyuRoot.add(rimLightsGroup);
 
-  const pulseMat = new THREE.PointsMaterial({
-    size: 6.0,
-    vertexColors: true,
+  // 3. 萧山夜空大气积雨云层与高空逆光体积雾
+  const cloudsGroup = new THREE.Group();
+  cloudsGroup.name = 'NightCloudVolumes';
+  const cloudCount = 28;
+  const cloudGeom = new THREE.DodecahedronGeometry(25, 1);
+  const cloudMat = new THREE.MeshStandardMaterial({
+    color: '#0f172a',
+    emissive: '#1e293b',
+    emissiveIntensity: 0.3,
+    roughness: 0.95,
+    metalness: 0.05,
     transparent: true,
-    opacity: 0.85,
-    blending: THREE.AdditiveBlending,
+    opacity: 0.45,
   });
-  const pulsePoints = new THREE.Points(pulseGeom, pulseMat);
-  group.add(pulsePoints);
 
-  // 3. 动态光晕与扫描脉冲光圈
-  const haloGeom = new THREE.RingGeometry(10, 18, 32);
-  const haloMat = new THREE.MeshBasicMaterial({
-    color: '#fbbf24',
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.4,
-    blending: THREE.AdditiveBlending,
-  });
-  const haloMesh = new THREE.Mesh(haloGeom, haloMat);
-  haloMesh.position.set(0, 50, -60);
-  haloMesh.rotation.x = Math.PI * 0.5;
-  group.add(haloMesh);
+  for (let i = 0; i < cloudCount; i++) {
+    const cloud = new THREE.Mesh(cloudGeom, cloudMat);
+    const angle = (i / cloudCount) * Math.PI * 2;
+    const dist = 120 + Math.random() * 200;
+    cloud.position.set(
+      Math.cos(angle) * dist,
+      60 + Math.random() * 45,
+      Math.sin(angle) * dist - 80
+    );
+    cloud.scale.set(
+      1.5 + Math.random() * 2.0,
+      0.6 + Math.random() * 0.8,
+      1.5 + Math.random() * 2.0
+    );
+    cloud.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+    cloudsGroup.add(cloud);
+  }
+  group.add(cloudsGroup);
 
   return {
     group,
     update: (time: number) => {
-      // 脉冲光斑闪烁动画
-      pulseMat.size = 5.0 + Math.sin(time * 8) * 2.5;
-      tubeMat.emissiveIntensity = 3.0 + Math.sin(time * 3) * 1.0;
-      haloMesh.scale.setScalar(1.0 + Math.sin(time * 2) * 0.2);
+      // 1. 轨迹光辉呼吸
+      outerTubeMat.emissiveIntensity = 3.0 + Math.sin(time * 3) * 1.2;
+      
+      // 2. 乾舆盘体 24 宿光斑依次顺时针脉冲频闪（营造类似照片中快门曝光捕获的脉冲点斑）
+      rimMeshes.forEach((mesh, idx) => {
+        const phase = time * 6 + (idx / rimCount) * Math.PI * 4;
+        const pulse = (Math.sin(phase) + 1) * 0.5; // 0 ~ 1
+        mesh.scale.setScalar(0.7 + pulse * 1.5);
+        const mat = mesh.material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 2.0 + pulse * 6.0;
+      });
+
+      // 3. 云层极微速游走
+      cloudsGroup.rotation.y = time * 0.005;
     },
   };
 }
