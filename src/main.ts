@@ -26,7 +26,6 @@ controls.dampingFactor = 0.05;
 controls.maxPolarAngle = Math.PI * 0.95;
 controls.minDistance = 2;
 controls.maxDistance = 500;
-// target 比 camera 高一点，产生轻微仰视
 controls.target.set(0, 4, 0);
 controls.update();
 
@@ -49,12 +48,11 @@ ufoGlow.position.set(0, -3, 0);
 scene.add(ufoGlow);
 
 // ===== 乾舆飞碟 =====
-// 飞碟放在 y=0，scale=1.0，相机从侧面看碟形剖面
+// 飞碟放大 1.8 倍，让碟形在画面中占据足够分量
 const qianyu = createQianyuModel();
 qianyu.root.position.set(0, 0, 0);
-// 轻微飞行倾斜（绕 Z 轴约 8°），让碟形有飞行感，但不过分遮挡侧视轮廓
 qianyu.root.rotation.set(0.0, -0.3, 0.14);
-qianyu.root.scale.setScalar(1.0);
+qianyu.root.scale.setScalar(1.8);
 scene.add(qianyu.root);
 qianyu.setLandingGearProgress(1.0);
 
@@ -70,20 +68,29 @@ ground.rotation.x = -Math.PI / 2;
 ground.position.y = -12;
 airportGroup.add(ground);
 
-// 2. 地平线橙黄灯光带（航站楼）
-// y=-11.5，z=-120，在相机侧视角下会出现在画面下方
+// 2. 地平线灯光：改成分段式，对应原图断续灯光效果
+// 航站楼主体（中心段）
 const terminal = new THREE.Mesh(
-  new THREE.BoxGeometry(500, 3.0, 3),
+  new THREE.BoxGeometry(200, 2.5, 2),
   new THREE.MeshBasicMaterial({ color: '#f59e0b' })
 );
-terminal.position.set(0, -11.5, -120);
+terminal.position.set(-40, -11.5, -100);
 airportGroup.add(terminal);
 
+// 航站楼右翼
+const terminalR = new THREE.Mesh(
+  new THREE.BoxGeometry(120, 2.0, 2),
+  new THREE.MeshBasicMaterial({ color: '#d97706' })
+);
+terminalR.position.set(160, -11.8, -100);
+airportGroup.add(terminalR);
+
+// 廊桥亮带（顶层细条）
 const terminal2 = new THREE.Mesh(
-  new THREE.BoxGeometry(440, 1.0, 2),
+  new THREE.BoxGeometry(180, 0.8, 1),
   new THREE.MeshBasicMaterial({ color: '#fbbf24' })
 );
-terminal2.position.set(0, -9.5, -120);
+terminal2.position.set(-40, -9.5, -100);
 airportGroup.add(terminal2);
 
 // 3. 左侧塔台
@@ -91,14 +98,14 @@ const towerBody = new THREE.Mesh(
   new THREE.CylinderGeometry(0.7, 1.0, 22, 8),
   new THREE.MeshBasicMaterial({ color: '#1e2d40' })
 );
-towerBody.position.set(-160, -2, -120);
+towerBody.position.set(-160, -2, -100);
 airportGroup.add(towerBody);
 
 const towerTopLight = new THREE.Mesh(
   new THREE.SphereGeometry(1.5, 8, 8),
   new THREE.MeshBasicMaterial({ color: '#fef08a' })
 );
-towerTopLight.position.set(-160, 8, -120);
+towerTopLight.position.set(-160, 8, -100);
 airportGroup.add(towerTopLight);
 
 // 4. 地平线散点暖灯
@@ -149,7 +156,7 @@ function setAirportView() {
   controls.target.set(0, 4, 0);
   qianyu.root.position.set(0, 0, 0);
   qianyu.root.rotation.set(0.0, -0.3, 0.14);
-  qianyu.root.scale.setScalar(1.0);
+  qianyu.root.scale.setScalar(1.8);
   ufoGlow.position.set(0, -3, 0);
   qianyu.setLandingGearProgress(1.0);
 
