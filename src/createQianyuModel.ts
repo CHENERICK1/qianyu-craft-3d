@@ -2,61 +2,56 @@ import * as THREE from 'three';
 import { PartMeta, QianyuModelResult, RenderMode } from './types';
 
 /**
- * 乾舆一号 · 2010 萧山机场 UFO 真实慢门流光神机
+ * 乾舆一号 · 严格按蓝图图纸比例建模
  * 
- * 核心对齐 2010 萧山机场实拍目击照片：
- * 1. 【发光流光弧带就是主体】：照片中那道横跨天际、极其耀眼的白色强光弧线（带金黄色等离子尾晕）是整个飞碟的主轮廓。
- * 2. 【光点阵列嵌入机身】：照片中那一排 24 宿脉冲白光点阵自然顺应流光弧度镶嵌在盘体边缘。
- * 3. 【精细度与真实感】：消除过大的突兀三角形/大几何块，优化玄铁装甲与古铜金构架细节。
+ * 蓝图关键尺寸（已目测图纸比例）：
+ * - 整体直径 15m（半径 7.5m）
+ * - 总高 5m：上穹顶约 3m + 下碟身约 2m
+ * - 上穹顶：中央顶点高，向外平缓弧降至赤道（典型"帽形"）
+ * - 赤道最宽处：直径 15m，高度约 0 基准
+ * - 下碟身：从赤道 15m 向内收缩至底部约 3m，形成下圆台
+ * - 24 扇星宿窗：沿赤道均布，嵌入玄铁甲壳
+ * - 顶部宝顶：高约 1.2m，小圆台+球珠
+ * - 三才鼎足：底部 120° 分布，斜向外展，高 2.3m
  */
 export function createQianyuModel(): QianyuModelResult {
   const root = new THREE.Group();
-  root.name = 'QianyuCraftRoot';
+  root.name = 'QianyuCraft';
 
   const parts: PartMeta[] = [];
   const landingGears: THREE.Group[] = [];
 
-  // ================= 材质定义 =================
+  // ===== 材质 =====
   const armorMat = new THREE.MeshStandardMaterial({
-    color: '#080d1a',
+    color: '#1a2235',
+    metalness: 0.88,
+    roughness: 0.28,
+  });
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: '#d97706',
     metalness: 0.92,
     roughness: 0.22,
-    envMapIntensity: 1.5,
+    emissive: '#7c2d12',
+    emissiveIntensity: 0.2,
   });
-
-  const goldTrimMat = new THREE.MeshStandardMaterial({
-    color: '#d97706',
-    metalness: 0.95,
-    roughness: 0.18,
-    emissive: '#78350f',
-    emissiveIntensity: 0.35,
-  });
-
-  // 主体高能白炽光弧（萧山照片核心光带）
-  const coreArcMat = new THREE.MeshStandardMaterial({
-    color: '#ffffff',
-    emissive: '#ffffff',
-    emissiveIntensity: 9.0,
+  const windowMat = new THREE.MeshStandardMaterial({
+    color: '#fef9c3',
+    emissive: '#fde047',
+    emissiveIntensity: 5.0,
     roughness: 0.05,
   });
-
-  // 弧光外层等离子能量光晕（金色半透辉光）
-  const haloArcMat = new THREE.MeshBasicMaterial({
-    color: '#fbbf24',
-    transparent: true,
-    opacity: 0.65,
-    blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide,
+  const pearlMat = new THREE.MeshStandardMaterial({
+    color: '#e0f2fe',
+    emissive: '#38bdf8',
+    emissiveIntensity: 6.0,
+    roughness: 0.04,
   });
-
-  // 24 宿周天点阵光斑（发光白球）
-  const beaconMat = new THREE.MeshStandardMaterial({
-    color: '#ffffff',
-    emissive: '#f0f9ff',
-    emissiveIntensity: 8.5,
-    roughness: 0.05,
+  const engineMat = new THREE.MeshStandardMaterial({
+    color: '#f0f9ff',
+    emissive: '#0ea5e9',
+    emissiveIntensity: 5.0,
+    roughness: 0.08,
   });
-
   const blueprintMat = new THREE.MeshBasicMaterial({
     color: '#38bdf8',
     wireframe: true,
@@ -64,187 +59,169 @@ export function createQianyuModel(): QianyuModelResult {
     opacity: 0.85,
   });
 
-  // ================= 1. 巨大流光主弧翼身 (横跨夜空的等离子主弧刃) =================
-  const arcWingGroup = new THREE.Group();
-  arcWingGroup.name = 'MainArcLuminousBody';
+  // ===== 主体盘面 =====
+  const saucerGroup = new THREE.Group();
+  saucerGroup.name = 'SaucerMainBody';
 
-  const arcPoints: THREE.Vector3[] = [];
-  for (let i = 0; i <= 80; i++) {
-    const t = i / 80;
-    const angle = (t - 0.5) * Math.PI * 0.92;
-    const r = 38.0;
-    const x = Math.sin(angle) * r * 1.35;
-    const y = -Math.cos(angle) * 5.5 + 5.5;
-    const z = (Math.cos(angle) - 1.0) * r * 0.45;
-    arcPoints.push(new THREE.Vector3(x, y, z));
-  }
-  const arcSpline = new THREE.CatmullRomCurve3(arcPoints);
+  // 上穹顶：用 LatheGeometry 精确还原蓝图"帽形"剖面
+  // 点位从顶部(r=0, y=3.0)到赤道(r=7.5, y=0)，带中间鼓出
+  const domePoints: THREE.Vector2[] = [
+    new THREE.Vector2(0,    3.0),
+    new THREE.Vector2(1.2,  2.85),
+    new THREE.Vector2(2.6,  2.5),
+    new THREE.Vector2(4.2,  2.0),
+    new THREE.Vector2(5.6,  1.35),
+    new THREE.Vector2(6.6,  0.7),
+    new THREE.Vector2(7.3,  0.25),
+    new THREE.Vector2(7.5,  0.0),
+  ];
+  const domeGeom = new THREE.LatheGeometry(domePoints, 64);
+  const domeMesh = new THREE.Mesh(domeGeom, armorMat);
+  domeMesh.castShadow = true;
+  saucerGroup.add(domeMesh);
 
-  // 核心白炽强光管
-  const coreTubeGeom = new THREE.TubeGeometry(arcSpline, 80, 1.4, 16, false);
-  const coreTubeMesh = new THREE.Mesh(coreTubeGeom, coreArcMat);
-  arcWingGroup.add(coreTubeMesh);
+  // 下碟身：从赤道(r=7.5, y=0)向内收至底盘(r=2.5, y=-2.0)
+  const hullPoints: THREE.Vector2[] = [
+    new THREE.Vector2(7.5,   0.0),
+    new THREE.Vector2(7.2,  -0.35),
+    new THREE.Vector2(6.5,  -0.85),
+    new THREE.Vector2(5.2,  -1.35),
+    new THREE.Vector2(3.8,  -1.75),
+    new THREE.Vector2(2.5,  -2.0),
+  ];
+  const hullGeom = new THREE.LatheGeometry(hullPoints, 64);
+  const hullMesh = new THREE.Mesh(hullGeom, armorMat);
+  hullMesh.castShadow = true;
+  saucerGroup.add(hullMesh);
 
-  // 外层等离子光晕管
-  const haloTubeGeom = new THREE.TubeGeometry(arcSpline, 80, 3.8, 16, false);
-  const haloTubeMesh = new THREE.Mesh(haloTubeGeom, haloArcMat);
-  arcWingGroup.add(haloTubeMesh);
+  // 赤道鎏金环带
+  const equatorRingGeom = new THREE.TorusGeometry(7.5, 0.12, 16, 64);
+  const equatorRingMesh = new THREE.Mesh(equatorRingGeom, goldMat);
+  equatorRingMesh.rotation.x = Math.PI / 2;
+  equatorRingMesh.position.y = 0;
+  saucerGroup.add(equatorRingMesh);
 
-  // ================= 2. 乾舆玄铁双曲抛物面碟身 =================
-  const saucerBodyGroup = new THREE.Group();
-  saucerBodyGroup.name = 'SaucerMainBody';
+  // 赤道内圈装饰金环
+  const innerRingGeom = new THREE.TorusGeometry(6.8, 0.07, 12, 64);
+  const innerRingMesh = new THREE.Mesh(innerRingGeom, goldMat);
+  innerRingMesh.rotation.x = Math.PI / 2;
+  innerRingMesh.position.y = 0.55;
+  saucerGroup.add(innerRingMesh);
 
-  // 上天盖
-  const upperDiscGeom = new THREE.CylinderGeometry(6.0, 34.0, 4.2, 64, 1, false);
-  upperDiscGeom.scale(1.3, 1.0, 0.85);
-  const upperDiscMesh = new THREE.Mesh(upperDiscGeom, armorMat);
-  upperDiscMesh.position.y = 1.0;
-  upperDiscMesh.castShadow = true;
-  upperDiscMesh.receiveShadow = true;
-  saucerBodyGroup.add(upperDiscMesh);
-
-  // 下地盘
-  const lowerDiscGeom = new THREE.CylinderGeometry(34.0, 10.0, 3.8, 64, 1, false);
-  lowerDiscGeom.scale(1.3, 1.0, 0.85);
-  const lowerDiscMesh = new THREE.Mesh(lowerDiscGeom, armorMat);
-  lowerDiscMesh.position.y = -2.4;
-  lowerDiscMesh.castShadow = true;
-  saucerBodyGroup.add(lowerDiscMesh);
-
-  // 赤道周天鎏金嵌带
-  const ringGeom = new THREE.TorusGeometry(33.8, 0.9, 16, 64);
-  ringGeom.scale(1.3, 0.6, 0.85);
-  const ringMesh = new THREE.Mesh(ringGeom, goldTrimMat);
-  ringMesh.rotation.x = Math.PI / 2;
-  ringMesh.position.y = -0.5;
-  saucerBodyGroup.add(ringMesh);
-
-  // ================= 3. 24 宿周天点阵脉冲光球 (照片标志性发光白球) =================
-  const rimLightsGroup = new THREE.Group();
-  rimLightsGroup.name = 'RimPulseBeacons';
-  const beaconMeshes: THREE.Mesh[] = [];
-  const beaconCount = 24;
-
-  const beaconGeom = new THREE.SphereGeometry(1.0, 16, 16);
-  for (let i = 0; i < beaconCount; i++) {
-    const angle = (i / beaconCount) * Math.PI * 2;
-    const bMesh = new THREE.Mesh(beaconGeom, beaconMat);
-    const rx = Math.cos(angle) * 34.0 * 1.3;
-    const rz = Math.sin(angle) * 34.0 * 0.85;
-    bMesh.position.set(rx, -0.5, rz);
-    rimLightsGroup.add(bMesh);
-    beaconMeshes.push(bMesh);
-  }
-  saucerBodyGroup.add(rimLightsGroup);
-
-  // ================= 4. 乾顶天池与太极定风珠 =================
-  const topCrownGroup = new THREE.Group();
-  topCrownGroup.name = 'TopCrownAndPearl';
-
-  for (let step = 0; step < 3; step++) {
-    const stepGeom = new THREE.CylinderGeometry(3.0 - step * 0.8, 5.0 - step * 0.9, 0.8, 32);
-    const stepMesh = new THREE.Mesh(stepGeom, goldTrimMat);
-    stepMesh.position.y = 3.4 + step * 0.75;
-    topCrownGroup.add(stepMesh);
+  // 24 宿周天棂花星宿窗 (在赤道凸缘上均布)
+  const windowCount = 24;
+  const windowMeshes: THREE.Mesh[] = [];
+  const winGeom = new THREE.BoxGeometry(0.65, 0.3, 0.2);
+  for (let i = 0; i < windowCount; i++) {
+    const ang = (i / windowCount) * Math.PI * 2;
+    const wm = new THREE.Mesh(winGeom, windowMat);
+    wm.position.set(Math.sin(ang) * 7.38, -0.05, Math.cos(ang) * 7.38);
+    wm.rotation.y = ang;
+    saucerGroup.add(wm);
+    windowMeshes.push(wm);
   }
 
-  const pearlGeom = new THREE.SphereGeometry(1.6, 32, 32);
-  const pearlMat = new THREE.MeshStandardMaterial({
-    color: '#e0f2fe',
-    emissive: '#38bdf8',
-    emissiveIntensity: 8.0,
-    roughness: 0.05,
-  });
-  const pearlMesh = new THREE.Mesh(pearlGeom, pearlMat);
-  pearlMesh.position.y = 6.6;
-  topCrownGroup.add(pearlMesh);
+  // ===== 顶部宝顶（蓝图顶部小亭/天池定风珠）=====
+  const crownGroup = new THREE.Group();
+  crownGroup.name = 'TopCrownAndPearl';
 
-  const crownHaloGeom = new THREE.TorusGeometry(3.6, 0.22, 16, 48);
-  const crownHaloMat = new THREE.MeshStandardMaterial({
-    color: '#38bdf8',
-    emissive: '#0284c7',
-    emissiveIntensity: 5.0,
-  });
-  const crownHaloMesh = new THREE.Mesh(crownHaloGeom, crownHaloMat);
-  crownHaloMesh.rotation.x = Math.PI / 3;
-  crownHaloMesh.position.y = 6.6;
-  topCrownGroup.add(crownHaloMesh);
+  // 宝顶底座圆台
+  const crownBase1 = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2.2, 0.4, 32), goldMat);
+  crownBase1.position.y = 3.2;
+  crownGroup.add(crownBase1);
 
-  // ================= 5. 底部反重力导流核心 =================
-  const bottomCoreGroup = new THREE.Group();
-  bottomCoreGroup.name = 'BottomAntigravityEngine';
+  const crownBase2 = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.4, 0.35, 32), goldMat);
+  crownBase2.position.y = 3.57;
+  crownGroup.add(crownBase2);
 
-  const engineConeGeom = new THREE.ConeGeometry(7.5, 3.8, 32, 1, true);
-  engineConeGeom.rotateX(Math.PI);
-  const engineConeMesh = new THREE.Mesh(engineConeGeom, armorMat);
-  engineConeMesh.position.y = -4.2;
-  bottomCoreGroup.add(engineConeMesh);
+  // 细颈连杆
+  const crownNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 0.45, 16), goldMat);
+  crownNeck.position.y = 3.9;
+  crownGroup.add(crownNeck);
 
-  const engineGlowGeom = new THREE.CylinderGeometry(4.8, 0.5, 2.0, 32);
-  const engineGlowMat = new THREE.MeshStandardMaterial({
-    color: '#ffffff',
-    emissive: '#0284c7',
-    emissiveIntensity: 6.5,
-  });
-  const engineGlowMesh = new THREE.Mesh(engineGlowGeom, engineGlowMat);
-  engineGlowMesh.position.y = -4.8;
-  bottomCoreGroup.add(engineGlowMesh);
+  // 定风宝珠
+  const pearl = new THREE.Mesh(new THREE.SphereGeometry(0.52, 32, 32), pearlMat);
+  pearl.position.y = 4.4;
+  crownGroup.add(pearl);
 
-  // ================= 6. 三足起落架系统 =================
+  // 混元光环（斜置）
+  const haloGeom = new THREE.TorusGeometry(1.05, 0.055, 16, 48);
+  const haloMesh = new THREE.Mesh(haloGeom, pearlMat);
+  haloMesh.rotation.x = Math.PI / 3.2;
+  haloMesh.position.y = 4.4;
+  crownGroup.add(haloMesh);
+
+  // ===== 底部反重力导流核心 =====
+  const engineGroup = new THREE.Group();
+  engineGroup.name = 'BottomAntigravityEngine';
+
+  const engineRimGeom = new THREE.CylinderGeometry(2.5, 1.8, 0.3, 32);
+  const engineRimMesh = new THREE.Mesh(engineRimGeom, goldMat);
+  engineRimMesh.position.y = -2.0;
+  engineGroup.add(engineRimMesh);
+
+  const engineNozzleGeom = new THREE.CylinderGeometry(1.7, 0.5, 0.55, 32);
+  const engineNozzleMesh = new THREE.Mesh(engineNozzleGeom, engineMat);
+  engineNozzleMesh.position.y = -2.5;
+  engineGroup.add(engineNozzleMesh);
+
+  // ===== 三才鼎足起落架（120°分布，斜撑外展）=====
   for (let i = 0; i < 3; i++) {
-    const angle = (i / 3) * Math.PI * 2;
-    const gearGroup = new THREE.Group();
-    gearGroup.name = 'gear_' + String(i + 1);
+    const baseAngle = (i / 3) * Math.PI * 2;
+    const gear = new THREE.Group();
+    gear.name = 'gear_' + String(i + 1);
 
-    const dist = 16.0;
-    gearGroup.position.set(Math.cos(angle) * dist, -3.2, Math.sin(angle) * dist);
-    gearGroup.rotation.y = -angle;
+    // 安装点在下碟身腰部 r≈4.5
+    gear.position.set(Math.sin(baseAngle) * 4.5, -1.5, Math.cos(baseAngle) * 4.5);
+    gear.rotation.y = baseAngle;
 
-    const strutGeom = new THREE.CylinderGeometry(0.45, 0.6, 5.0, 16);
-    const strutMesh = new THREE.Mesh(strutGeom, goldTrimMat);
-    strutMesh.position.y = -2.5;
-    gearGroup.add(strutMesh);
+    // 液压斜撑主柱（向外下方倾斜）
+    const strutGeom = new THREE.CylinderGeometry(0.1, 0.14, 2.8, 12);
+    const strut = new THREE.Mesh(strutGeom, goldMat);
+    strut.rotation.x = 0.45;
+    strut.position.set(0, -1.2, 0.8);
+    gear.add(strut);
 
-    const footGeom = new THREE.CylinderGeometry(2.0, 2.8, 0.7, 6);
-    const footMesh = new THREE.Mesh(footGeom, armorMat);
-    footMesh.position.y = -5.0;
-    gearGroup.add(footMesh);
+    // 液压缸体
+    const cylGeom = new THREE.CylinderGeometry(0.18, 0.18, 0.9, 12);
+    const cyl = new THREE.Mesh(cylGeom, armorMat);
+    cyl.rotation.x = 0.45;
+    cyl.position.set(0, -0.85, 0.55);
+    gear.add(cyl);
 
-    landingGears.push(gearGroup);
-    saucerBodyGroup.add(gearGroup);
+    // 落地六边足盘
+    const padGeom = new THREE.CylinderGeometry(0.5, 0.65, 0.15, 6);
+    const pad = new THREE.Mesh(padGeom, armorMat);
+    pad.position.set(0, -2.4, 1.55);
+    gear.add(pad);
+
+    landingGears.push(gear);
+    saucerGroup.add(gear);
   }
 
-  root.add(arcWingGroup);
-  root.add(saucerBodyGroup);
-  root.add(topCrownGroup);
-  root.add(bottomCoreGroup);
+  root.add(saucerGroup);
+  root.add(crownGroup);
+  root.add(engineGroup);
 
-  parts.push({
-    name: 'MainArcLuminousBody',
-    mesh: arcWingGroup,
-    originPos: arcWingGroup.position.clone(),
-    explodeDir: new THREE.Vector3(0, 0.8, 1.2).normalize(),
-  });
+  // parts（用于爆炸分拆）
   parts.push({
     name: 'TopCrownAndPearl',
-    mesh: topCrownGroup,
-    originPos: topCrownGroup.position.clone(),
+    mesh: crownGroup,
+    originPos: crownGroup.position.clone(),
     explodeDir: new THREE.Vector3(0, 1, 0),
   });
   parts.push({
     name: 'SaucerMainBody',
-    mesh: saucerBodyGroup,
-    originPos: saucerBodyGroup.position.clone(),
+    mesh: saucerGroup,
+    originPos: saucerGroup.position.clone(),
     explodeDir: new THREE.Vector3(0, 0, 0),
   });
   parts.push({
     name: 'BottomAntigravityEngine',
-    mesh: bottomCoreGroup,
-    originPos: bottomCoreGroup.position.clone(),
+    mesh: engineGroup,
+    originPos: engineGroup.position.clone(),
     explodeDir: new THREE.Vector3(0, -1, 0),
   });
-
-  let currentLandingProgress = 0.0;
 
   return {
     root,
@@ -253,36 +230,31 @@ export function createQianyuModel(): QianyuModelResult {
       const isBP = mode === 'blueprint';
       root.traverse((child) => {
         if (child instanceof THREE.Mesh) {
-          if (child === coreTubeMesh || child === haloTubeMesh || child === pearlMesh) {
-            return;
-          }
-          child.material = isBP ? blueprintMat : child.userData.originMat || child.material;
-          if (!child.userData.originMat) {
-            child.userData.originMat = child.material;
-          }
+          // 保持发光件不变
+          if (child === pearl || child === engineNozzleMesh || windowMeshes.includes(child)) return;
+          child.material = isBP ? blueprintMat : (child.userData.orig || child.material);
+          if (!child.userData.orig) child.userData.orig = child.material;
         }
       });
     },
     setLandingGearProgress: (progress: number) => {
-      currentLandingProgress = THREE.MathUtils.clamp(progress, 0, 1);
+      const p = THREE.MathUtils.clamp(progress, 0, 1);
       landingGears.forEach((gear) => {
-        gear.position.y = -3.2 + currentLandingProgress * 4.5;
-        gear.scale.setScalar(1.0 - currentLandingProgress * 0.8);
+        // 收起时向上旋转并缩进
+        gear.rotation.x = -p * 1.1;
+        gear.position.y = -1.5 + p * 1.0;
+        gear.scale.setScalar(1.0 - p * 0.45);
       });
     },
     updateAnimation: (delta: number) => {
-      pearlMesh.rotation.y += delta * 1.5;
-      crownHaloMesh.rotation.z += delta * 2.2;
+      pearl.rotation.y += delta * 1.8;
+      haloMesh.rotation.z += delta * 2.4;
 
-      const now = performance.now() * 0.005;
-      beaconMeshes.forEach((mesh, idx) => {
-        const phase = now + (idx / beaconCount) * Math.PI * 4;
-        const wave = (Math.sin(phase) + 1) * 0.5;
-        mesh.scale.setScalar(0.8 + wave * 1.3);
+      const now = performance.now() * 0.004;
+      windowMeshes.forEach((m, i) => {
+        const pulse = (Math.sin(now + (i / windowCount) * Math.PI * 4) + 1) * 0.5;
+        (m.material as THREE.MeshStandardMaterial).emissiveIntensity = 2.5 + pulse * 5.0;
       });
-
-      coreArcMat.emissiveIntensity = 8.5 + Math.sin(now * 0.8) * 2.0;
-      haloArcMat.opacity = 0.6 + Math.sin(now * 1.2) * 0.2;
     },
   };
 }
